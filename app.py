@@ -1,5 +1,5 @@
 import streamlit as st
-
+import pandas as pd
 st.set_page_config(page_title="Groww Mutual Fund Facts Assistant", layout="wide")
 
 st.title("📊 Groww Mutual Fund Facts Assistant")
@@ -43,7 +43,7 @@ funds = [
     {"name": "DSP Midcap Fund", "category": "Equity", "nav": 98.42, "risk": "High"},
     {"name": "Tata Digital India Fund", "category": "Equity", "nav": 132.10, "risk": "High"},
 ]
-
+df = pd.DataFrame(funds)
 # ---------------- USER INPUT ---------------- #
 
 question = st.text_input("Ask your question (enter scheme name)")
