@@ -58,6 +58,24 @@ if question:
     # Detect long-term intent
     long_term_keywords = ["long term", "long-term", "safe", "best"]
     is_long_term_query = any(word in question_lower for word in long_term_keywords)
+# ---------------- ANALYTICS DASHBOARD ---------------- #
+
+st.markdown("## 📊 Fund Analytics Dashboard")
+
+# Category Distribution
+st.subheader("📊 Category Distribution")
+category_counts = df["category"].value_counts()
+st.bar_chart(category_counts)
+
+# Risk Distribution
+st.subheader("📊 Risk Distribution")
+risk_counts = df["risk"].value_counts()
+st.bar_chart(risk_counts)
+
+# NAV Comparison
+st.subheader("📈 NAV Comparison of All Funds")
+nav_df = df.set_index("name")["nav"]
+st.bar_chart(nav_df)
 
     # ---------- Scoring Function ---------- #
 
