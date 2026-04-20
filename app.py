@@ -11,7 +11,7 @@ if "chat_history" not in st.session_state:
 # ---------------- HEADER ---------------- #
 
 st.title("🤖 Mutual Fund AI Chatbot")
-st.caption("Conversational assistant for fund insights (facts-only)")
+st.caption("Facts-only assistant with smart recommendations")
 
 # ---------------- SIDEBAR ---------------- #
 
@@ -27,11 +27,6 @@ horizon = st.sidebar.selectbox(
     ["Any", "Short Term (1-3 years)", "Medium Term (3-5 years)", "Long Term (5+ years)"]
 )
 
-sort_option = st.sidebar.selectbox(
-    "Sort By",
-    ["Default", "NAV High → Low", "NAV Low → High", "Risk Level"]
-)
-
 # ---------------- DATA ---------------- #
 
 funds = [
@@ -45,11 +40,11 @@ funds = [
 
 df = pd.DataFrame(funds)
 
-# ---------------- CHAT UI ---------------- #
+# ---------------- CHAT DISPLAY ---------------- #
 
 for msg in st.session_state.chat_history:
     with st.chat_message(msg["role"]):
-        st.write(msg["content"])
+        st.markdown(msg["content"])
 
 question = st.chat_input("Ask: safe long term fund, balanced portfolio, etc.")
 
@@ -64,7 +59,7 @@ def detect_intent(text):
         return "long_term"
     if "short" in t:
         return "short_term"
-    if "balanced" in t or "medium" in t:
+    if "balanced" in t:
         return "balanced"
 
     return "neutral"
@@ -134,38 +129,36 @@ if question:
 
     ranked = sorted(ranked, key=lambda x: x["score"], reverse=True)
 
-    top = ranked[:3]
+    top3 = ranked[:3]
 
     response = f"""
-📊 Based on your request:
+📊 Analysis Complete
 
 Intent: {intent}
 Horizon: {horizon}
 
-🏆 Top Recommendation: {top[0]['name']}
-Category: {top[0]['category']}
-Risk: {top[0]['risk']}
-NAV: {top[0]['nav']}
+🏆 Top Recommendation: {top3[0]['name']}
 """
 
-    # store chat
+    # store chat history
     st.session_state.chat_history.append({"role": "user", "content": question})
     st.session_state.chat_history.append({"role": "assistant", "content": response})
 
+    # show assistant response
     with st.chat_message("assistant"):
-        st.write(response)
+        st.markdown(response)
 
-        st.markdown("### 🏆 Top 3 Funds")
+        st.markdown("### 🏆 Top 3 Recommended Funds")
 
-        for i, f in enumerate(top):
+        for i, fund in enumerate(top3):
             medal = ["🥇", "🥈", "🥉"][i]
-            st.success(f"{medal} {f['name']}")
-            st.write(f"Category: {f['category']}")
-            st.write(f"Risk: {f['risk']}")
-            st.write(f"NAV: {f['nav']}")
+
+            st.success(f"{medal} {fund['name']}")
+            st.write("Category:", fund["category"])
+            st.write("Risk:", fund["risk"])
+            st.write("NAV:", fund["nav"])
             st.markdown("---")
 
 # ---------------- FOOTER ---------------- #
 
-st.divider()
-st.caption("💡 Try: 'safe long term fund' | 'balanced portfolio' | 'low risk short term'")
+st.caption("💡 Try: 'safe long term fund' | 'balanced portfolio' | 'short term debt'")
