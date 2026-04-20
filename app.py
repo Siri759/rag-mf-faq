@@ -128,6 +128,45 @@ def score_fund(fund, horizon, intent):
         score += 4
 
     return score
+    def build_portfolio(funds, horizon):
+
+    portfolio = []
+
+    if horizon == "Short Term (1-3 years)":
+        allocation = {
+            "Debt": 0.60,
+            "Hybrid": 0.30,
+            "Equity": 0.10
+        }
+
+    elif horizon == "Medium Term (3-5 years)":
+        allocation = {
+            "Debt": 0.30,
+            "Hybrid": 0.40,
+            "Equity": 0.30
+        }
+
+    else:  # Long term
+        allocation = {
+            "Debt": 0.10,
+            "Hybrid": 0.30,
+            "Equity": 0.60
+        }
+
+    for category, weight in allocation.items():
+
+        category_funds = [f for f in funds if f["category"] == category]
+
+        if category_funds:
+            best = max(category_funds, key=lambda x: x["score"])
+            portfolio.append({
+                "fund": best["name"],
+                "category": category,
+                "allocation_pct": int(weight * 100),
+                "amount": int(weight * amount)
+            })
+
+    return portfolio
 
 # ---------------- FILTERING ---------------- #
 
