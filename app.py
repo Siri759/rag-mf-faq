@@ -23,8 +23,14 @@ question = st.text_input("Ask your question (enter scheme name)")
 
 if question:
     found = False
+    question_lower = question.lower()
+
     for fund in funds:
-        if question.lower() in fund["name"].lower():
+        if (
+            question_lower in fund["name"].lower()
+            or question_lower in fund["category"].lower()
+            or question_lower in fund["risk"].lower()
+        ):
             if category_filter == "All" or fund["category"] == category_filter:
                 st.success("Fund Found ✅")
 
