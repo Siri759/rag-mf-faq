@@ -11,7 +11,7 @@ if "chat_history" not in st.session_state:
 # ---------------- HEADER ---------------- #
 
 st.title("🤖 Mutual Fund AI Chatbot")
-st.caption("Facts-only assistant with smart ranking + portfolio logic")
+st.caption("Facts-only + Quant analytics + Portfolio insights")
 
 # ---------------- SIDEBAR ---------------- #
 
@@ -45,17 +45,17 @@ funds = [
 
 df = pd.DataFrame(funds)
 
-# ---------------- APPLY FILTERS ---------------- #
+# ---------------- FILTER ---------------- #
 
 if category_filter != "All":
     df = df[df["category"] == category_filter]
 
-# ---------------- APPLY SORTING (FIXED) ---------------- #
+# ---------------- SORTING FIXED ---------------- #
 
 if sort_option == "NAV Low → High":
     df = df.sort_values("nav", ascending=True)
 
-elif sort_option == "NAV High → High" or sort_option == "NAV High → Low":
+elif sort_option == "NAV High → Low":
     df = df.sort_values("nav", ascending=False)
 
 elif sort_option == "Risk Level":
@@ -70,7 +70,7 @@ for msg in st.session_state.chat_history:
 
 question = st.chat_input("Ask: safe long term fund, balanced portfolio, etc.")
 
-# ---------------- INTENT ENGINE ---------------- #
+# ---------------- INTENT ---------------- #
 
 def detect_intent(text):
     t = text.lower()
@@ -92,7 +92,6 @@ def score_fund(fund, horizon, intent):
 
     score = 0
 
-    # Risk scoring
     if fund["risk"] == "Low":
         score += 5
     elif fund["risk"] == "Moderate":
@@ -100,7 +99,6 @@ def score_fund(fund, horizon, intent):
     else:
         score += 1
 
-    # Category scoring
     if fund["category"] == "Equity":
         score += 4
     elif fund["category"] == "Hybrid":
@@ -108,24 +106,18 @@ def score_fund(fund, horizon, intent):
     else:
         score += 2
 
-    # NAV stability
     if 40 <= fund["nav"] <= 120:
         score += 2
 
-    # Horizon logic
-    if horizon == "Short Term (1-3 years)":
-        if fund["category"] == "Debt":
-            score += 4
+    if horizon == "Short Term (1-3 years)" and fund["category"] == "Debt":
+        score += 4
 
-    elif horizon == "Medium Term (3-5 years)":
-        if fund["category"] == "Hybrid":
-            score += 4
+    if horizon == "Medium Term (3-5 years)" and fund["category"] == "Hybrid":
+        score += 4
 
-    elif horizon == "Long Term (5+ years)":
-        if fund["category"] == "Equity":
-            score += 5
+    if horizon == "Long Term (5+ years)" and fund["category"] == "Equity":
+        score += 5
 
-    # Intent boost
     if intent == "safe" and fund["risk"] == "Low":
         score += 4
 
@@ -137,7 +129,17 @@ def score_fund(fund, horizon, intent):
 
     return score
 
-# ---------------- MAIN CHAT LOGIC ---------------- #
+# ---------------- RISK SCORE (NUMERIC) ---------------- #
+
+def risk_score(fund):
+    if fund["risk"] == "Low":
+        return 80
+    elif fund["risk"] == "Moderate":
+        return 60
+    else:
+        return 40
+
+# ---------------- CHAT LOGIC ---------------- #
 
 if question:
 
@@ -153,34 +155,60 @@ if question:
 
     top3 = ranked[:3]
 
+    # ---------------- ANALYTICS ---------------- #
+
+    avg_nav = sum(f["nav"] for f in top3) / len(top3)
+    avg_risk = sum(risk_score(f) for f in top3) / len(top3)
+
+    equity = sum(1 for f in top3 if f["category"] == "Equity")
+    debt = sum(1 for f in top3 if f["category"] == "Debt")
+    hybrid = sum(1 for f in top3 if f["category"] == "Hybrid")
+
+    portfolio_strength = (avg_risk + (equity * 20) + (hybrid * 15) + (debt * 10)) / 3
+
+    # ---------------- RESPONSE ---------------- #
+
     response = f"""
 📊 Analysis Complete
 
 Intent: {intent}
 Horizon: {horizon}
 
-🏆 Top Recommendation: {top3[0]['name']}
+🏆 Top Fund: {top3[0]['name']}
 """
 
-    # save chat
     st.session_state.chat_history.append({"role": "user", "content": question})
     st.session_state.chat_history.append({"role": "assistant", "content": response})
 
-    # show response
     with st.chat_message("assistant"):
         st.markdown(response)
 
-        st.markdown("### 🏆 Top 3 Recommended Funds")
+        st.markdown("### 🏆 Top 3 Funds")
 
-        for i, fund in enumerate(top3):
+        for i, f in enumerate(top3):
             medal = ["🥇", "🥈", "🥉"][i]
 
-            st.success(f"{medal} {fund['name']}")
-            st.write("Category:", fund["category"])
-            st.write("Risk:", fund["risk"])
-            st.write("NAV:", fund["nav"])
+            st.success(f"{medal} {f['name']}")
+            st.write("Category:", f["category"])
+            st.write("Risk:", f["risk"])
+            st.write("NAV:", f["nav"])
+            st.write("Risk Score:", risk_score(f))
             st.markdown("---")
+
+        # ---------------- ANALYTICS UI ---------------- #
+
+        st.markdown("## 📊 Portfolio Analytics")
+
+        st.write("📈 Avg NAV:", round(avg_nav, 2))
+        st.write("⚖️ Avg Risk Score:", round(avg_risk, 2))
+
+        st.markdown("### Allocation")
+        st.write("Equity:", equity)
+        st.write("Debt:", debt)
+        st.write("Hybrid:", hybrid)
+
+        st.success(f"💡 Portfolio Strength Score: {round(portfolio_strength, 2)} / 100")
 
 # ---------------- FOOTER ---------------- #
 
-st.caption("💡 Tip: Try 'safe long term fund' or 'balanced portfolio'")
+st.caption("💡 Try: 'safe long term fund' | 'balanced portfolio' | 'short term debt'")
