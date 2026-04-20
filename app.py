@@ -47,38 +47,22 @@ funds = [
 
 df = pd.DataFrame(funds)
 
-# ---------------- ANALYTICS DASHBOARD (FIXED POSITION) ---------------- #
+# ---------------- ANALYTICS DASHBOARD (ONLY ONCE) ---------------- #
 
-st.markdown("## 📊 Fund Analytics Dashboard")
+with st.expander("📊 Fund Analytics Dashboard", expanded=False):
 
-col1, col2 = st.columns(2)
-
-with col1:
     st.subheader("Category Distribution")
     st.bar_chart(df["category"].value_counts())
 
-with col2:
     st.subheader("Risk Distribution")
     st.bar_chart(df["risk"].value_counts())
 
-st.subheader("NAV Comparison of All Funds")
-st.bar_chart(df.set_index("name")["nav"])
+    st.subheader("NAV Comparison of All Funds")
+    st.bar_chart(df.set_index("name")["nav"])
 
 # ---------------- USER INPUT ---------------- #
 
 question = st.text_input("Ask your question (enter scheme name or intent)")
-# ---------------- ANALYTICS DASHBOARD (FIXED UX) ---------------- #
-
-with st.expander("📊 Fund Analytics Dashboard (Click to view)", expanded=False):
-
-    st.markdown("### Category Distribution")
-    st.bar_chart(df["category"].value_counts())
-
-    st.markdown("### Risk Distribution")
-    st.bar_chart(df["risk"].value_counts())
-
-    st.markdown("### NAV Comparison of All Funds")
-    st.bar_chart(df.set_index("name")["nav"])
 
 # ---------------- SCORING FUNCTION ---------------- #
 
@@ -104,31 +88,30 @@ def calculate_score(fund):
 
 if question:
 
-    question_lower = question.lower()
+    q = question.lower()
     matches = []
 
-    long_term_keywords = ["long term", "long-term", "safe", "best"]
-    is_long_term_query = any(word in question_lower for word in long_term_keywords)
+    is_long_term = any(x in q for x in ["long term", "long-term", "safe", "best"])
 
     for fund in funds:
 
-        if "long" in question_lower and "equity" in question_lower:
+        if "long" in q and "equity" in q:
             if fund["category"] == "Equity" and fund["risk"] in ["Low", "Moderate"]:
                 matches.append(fund)
 
-        elif "short" in question_lower and "safe" in question_lower:
+        elif "short" in q and "safe" in q:
             if fund["category"] == "Debt" and fund["risk"] == "Low":
                 matches.append(fund)
 
-        elif "medium" in question_lower or "balanced" in question_lower:
+        elif "medium" in q or "balanced" in q:
             if fund["category"] in ["Hybrid", "Equity"] and fund["risk"] in ["Low", "Moderate"]:
                 matches.append(fund)
 
         else:
             if (
-                question_lower in fund["name"].lower()
-                or question_lower in fund["category"].lower()
-                or question_lower in fund["risk"].lower()
+                q in fund["name"].lower()
+                or q in fund["category"].lower()
+                or q in fund["risk"].lower()
             ):
                 if category_filter == "All" or fund["category"] == category_filter:
                     matches.append(fund)
@@ -138,16 +121,18 @@ if question:
     if matches:
 
         if sort_option == "NAV (High to Low)":
-            matches = sorted(matches, key=lambda x: x["nav"], reverse=True)
+            matches.sort(key=lambda x: x["nav"], reverse=True)
 
         elif sort_option == "NAV (Low to High)":
-            matches = sorted(matches, key=lambda x: x["nav"])
+            matches.sort(key=lambda x: x["nav"])
 
         elif sort_option == "Risk Level":
-            risk_order = {"Low": 1, "Moderate": 2, "High": 3}
-            matches = sorted(matches, key=lambda x: risk_order[x["risk"]])
+            risk_map = {"Low": 1, "Moderate": 2, "High": 3}
+            matches.sort(key=lambda x: risk_map[x["risk"]])
 
-        if is_long_term_query:
+        st.success(f"{len(matches)} Fund(s) Found ✅")
+
+        if is_long_term:
             ranked = sorted(matches, key=lambda x: calculate_score(x), reverse=True)
             top3 = ranked[:3]
 
@@ -157,17 +142,15 @@ if question:
                 medal = ["🥇", "🥈", "🥉"][i]
                 st.success(f"{medal} {fund['name']} (Score: {calculate_score(fund)})")
 
-        st.success(f"{len(matches)} Fund(s) Found ✅")
-
-        for index, fund in enumerate(matches):
+        for i, fund in enumerate(matches):
 
             st.markdown("---")
 
-            if index == 0 and is_long_term_query:
+            if i == 0 and is_long_term:
                 st.success("🏆 Top Pick Based on Query")
 
-            if is_long_term_query and fund["risk"] == "Low":
-                st.info("⭐ Recommended for Long Term Investment")
+            if is_long_term and fund["risk"] == "Low":
+                st.info("⭐ Long Term Stable Option")
 
             st.subheader(fund["name"])
 
@@ -178,7 +161,7 @@ if question:
                 st.write("Category:", fund["category"])
 
             with col2:
-                st.write("Risk Level:", fund["risk"])
+                st.write("Risk:", fund["risk"])
 
     else:
         st.error("No matching fund found.")
