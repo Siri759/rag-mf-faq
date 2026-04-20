@@ -61,23 +61,26 @@ if question:
         return score
 
     # MAIN MATCHING LOOP (PROPERLY INDENTED)
+        # SMART FILTERING BASED ON USER INTENT
     for fund in funds:
 
-        # Horizon-based filtering
-        if horizon == "Short Term (1-3 years)":
-            if fund["category"] == "Debt" and fund["risk"] == "Low":
-                matches.append(fund)
-
-        elif horizon == "Medium Term (3-5 years)":
-            if fund["category"] in ["Hybrid", "Equity"] and fund["risk"] in ["Low", "Moderate"]:
-                matches.append(fund)
-
-        elif horizon == "Long Term (5+ years)":
+        # --- Long term + equity intent ---
+        if "long" in question_lower and "equity" in question_lower:
             if fund["category"] == "Equity" and fund["risk"] in ["Low", "Moderate"]:
                 matches.append(fund)
 
+        # --- Short term + safe ---
+        elif "short" in question_lower and "safe" in question_lower:
+            if fund["category"] == "Debt" and fund["risk"] == "Low":
+                matches.append(fund)
+
+        # --- Medium term + moderate funds ---
+        elif "medium" in question_lower or "balanced" in question_lower:
+            if fund["category"] in ["Hybrid", "Equity"] and fund["risk"] in ["Low", "Moderate"]:
+                matches.append(fund)
+
+        # --- If user typed a specific name/category/risk word ---
         else:
-            # Normal text search
             if (
                 question_lower in fund["name"].lower()
                 or question_lower in fund["category"].lower()
