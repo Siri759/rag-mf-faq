@@ -1,14 +1,70 @@
+import streamlit as st
+
+st.set_page_config(page_title="Groww Mutual Fund Facts Assistant", layout="wide")
+
+st.title("📊 Groww Mutual Fund Facts Assistant")
+st.caption("Facts-only. No investment advice.")
+
+# ---------------- SIDEBAR ---------------- #
+
+st.sidebar.header("Filter Options")
+
+category_filter = st.sidebar.selectbox(
+    "Select Category",
+    ["All", "Equity", "Debt", "Hybrid"]
+)
+
+horizon = st.sidebar.selectbox(
+    "Investment Horizon",
+    ["Any", "Short Term (1-3 years)", "Medium Term (3-5 years)", "Long Term (5+ years)"]
+)
+
+sort_option = st.sidebar.selectbox(
+    "Sort By",
+    ["Default", "NAV (High to Low)", "NAV (Low to High)", "Risk Level"]
+)
+
+# ---------------- FUND DATA ---------------- #
+
+funds = [
+    {"name": "Axis Bluechip Fund - Growth", "category": "Equity", "nav": 52.34, "risk": "Low"},
+    {"name": "SBI Small Cap Fund - Growth", "category": "Equity", "nav": 110.21, "risk": "High"},
+    {"name": "HDFC Hybrid Fund - Growth", "category": "Hybrid", "nav": 45.10, "risk": "Moderate"},
+    {"name": "ICICI Prudential Technology Fund", "category": "Equity", "nav": 150.44, "risk": "High"},
+    {"name": "Kotak Emerging Equity Fund", "category": "Equity", "nav": 78.12, "risk": "High"},
+    {"name": "Parag Parikh Flexi Cap Fund", "category": "Equity", "nav": 65.90, "risk": "Moderate"},
+    {"name": "Mirae Asset Large Cap Fund", "category": "Equity", "nav": 89.33, "risk": "Low"},
+    {"name": "UTI Nifty Index Fund", "category": "Equity", "nav": 120.55, "risk": "Low"},
+    {"name": "Aditya Birla Tax Relief 96", "category": "Equity", "nav": 44.87, "risk": "Moderate"},
+    {"name": "Nippon India Growth Fund", "category": "Equity", "nav": 102.77, "risk": "High"},
+    {"name": "HDFC Corporate Bond Fund", "category": "Debt", "nav": 32.14, "risk": "Low"},
+    {"name": "SBI Magnum Gilt Fund", "category": "Debt", "nav": 28.76, "risk": "Low"},
+    {"name": "ICICI Prudential Balanced Advantage Fund", "category": "Hybrid", "nav": 37.55, "risk": "Moderate"},
+    {"name": "DSP Midcap Fund", "category": "Equity", "nav": 98.42, "risk": "High"},
+    {"name": "Tata Digital India Fund", "category": "Equity", "nav": 132.10, "risk": "High"},
+]
+
+# ---------------- USER INPUT ---------------- #
+
+question = st.text_input("Ask your question (enter scheme name)")
+
+# ---------------- MAIN LOGIC ---------------- #
+
 if question:
+
     question_lower = question.lower()
     matches = []
 
+    # Detect long-term intent
     long_term_keywords = ["long term", "long-term", "safe", "best"]
-    is_long_term_query = any(keyword in question_lower for keyword in long_term_keywords)
+    is_long_term_query = any(word in question_lower for word in long_term_keywords)
 
-    # Scoring function (properly indented)
+    # ---------- Scoring Function ---------- #
+
     def calculate_score(fund):
         score = 0
 
+        # Risk weight
         if fund["risk"] == "Low":
             score += 5
         elif fund["risk"] == "Moderate":
@@ -16,29 +72,36 @@ if question:
         else:
             score += 1
 
+        # Equity preference
         if fund["category"] == "Equity":
             score += 4
 
+        # NAV stability bonus
         if 40 <= fund["nav"] <= 120:
             score += 2
 
         return score
 
-    # SMART MATCHING
+    # ---------- Matching Logic ---------- #
+
     for fund in funds:
 
+        # Long term + equity intent
         if "long" in question_lower and "equity" in question_lower:
             if fund["category"] == "Equity" and fund["risk"] in ["Low", "Moderate"]:
                 matches.append(fund)
 
+        # Short term safe
         elif "short" in question_lower and "safe" in question_lower:
             if fund["category"] == "Debt" and fund["risk"] == "Low":
                 matches.append(fund)
 
+        # Medium term balanced
         elif "medium" in question_lower or "balanced" in question_lower:
             if fund["category"] in ["Hybrid", "Equity"] and fund["risk"] in ["Low", "Moderate"]:
                 matches.append(fund)
 
+        # Default keyword search
         else:
             if (
                 question_lower in fund["name"].lower()
@@ -48,7 +111,8 @@ if question:
                 if category_filter == "All" or fund["category"] == category_filter:
                     matches.append(fund)
 
-    # OUTPUT
+    # ---------- OUTPUT ---------- #
+
     if matches:
 
         # Apply Sorting
@@ -62,7 +126,7 @@ if question:
             risk_order = {"Low": 1, "Moderate": 2, "High": 3}
             matches = sorted(matches, key=lambda x: risk_order[x["risk"]])
 
-        # Top 3 Recommendation
+        # Top 3 Recommendation Section
         if is_long_term_query:
             ranked = sorted(matches, key=lambda x: calculate_score(x), reverse=True)
             top3 = ranked[:3]
@@ -75,7 +139,9 @@ if question:
 
         st.success(f"{len(matches)} Fund(s) Found ✅")
 
+        # Display All Results
         for index, fund in enumerate(matches):
+
             st.markdown("---")
 
             if index == 0 and is_long_term_query:
