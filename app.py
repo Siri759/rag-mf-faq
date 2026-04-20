@@ -57,20 +57,27 @@ if question:
 
         return score
 
-    # Matching logic
+        # Matching logic
     for fund in funds:
-        if (
-            question_lower in fund["name"].lower()
-            or question_lower in fund["category"].lower()
-            or question_lower in fund["risk"].lower()
-            or is_long_term_query
-        ):
-            if category_filter == "All" or fund["category"] == category_filter:
+
+        # Smart long-term filtering
+        if is_long_term_query:
+            if fund["category"] == "Equity" and fund["risk"] in ["Low", "Moderate"]:
                 matches.append(fund)
+
+        # Normal keyword search
+        else:
+            if (
+                question_lower in fund["name"].lower()
+                or question_lower in fund["category"].lower()
+                or question_lower in fund["risk"].lower()
+            ):
+                if category_filter == "All" or fund["category"] == category_filter:
+                    matches.append(fund)
 
     if matches:
 
-        # Sort by score if long-term query
+        # Sort by score only if long-term
         if is_long_term_query:
             matches = sorted(matches, key=lambda x: calculate_score(x), reverse=True)
 
@@ -80,11 +87,9 @@ if question:
             with st.container():
                 st.markdown("---")
 
-                # Top Pick Badge
                 if index == 0 and is_long_term_query:
                     st.success("🏆 Top Pick Based on Query")
 
-                # Recommended Badge
                 if is_long_term_query and fund["risk"] == "Low":
                     st.info("⭐ Recommended for Long Term Investment")
 
