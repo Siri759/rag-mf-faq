@@ -71,7 +71,7 @@ if question:
                 st.markdown("---")
 
                 if is_long_term_query:
-    matches = sorted(matches, key=lambda x: x["risk"] != "Low")
+                    matches = sorted(matches, key=lambda x: calculate_score(x), reverse=True)
 
                 st.subheader(fund["name"])
 
