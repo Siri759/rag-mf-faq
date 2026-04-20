@@ -3,12 +3,10 @@ import pandas as pd
 
 st.set_page_config(page_title="Groww Mutual Fund Facts Assistant", layout="wide")
 
-# ---------------- HEADER ---------------- #
-
 st.title("📊 Groww Mutual Fund Facts Assistant")
 st.caption("Facts-only. No investment advice.")
 
-# ---------------- INPUT (ONLY ONCE) ---------------- #
+# ---------------- INPUT ---------------- #
 
 question = st.text_input("Ask your question (scheme name or intent)")
 
@@ -22,28 +20,29 @@ funds = [
 
 df = pd.DataFrame(funds)
 
-# ---------------- DASHBOARD (ONLY ONCE) ---------------- #
+# ---------------- DASHBOARD ---------------- #
 
-with st.expander("📊 Fund Analytics Dashboard (Click to view)", expanded=False):
+with st.expander("📊 Fund Analytics Dashboard", expanded=False):
 
-    col1, col2 = st.columns(2)
+    st.subheader("Category Distribution")
+    st.bar_chart(df["category"].value_counts())
 
-    with col1:
-        st.subheader("Category Distribution")
-        st.bar_chart(df["category"].value_counts())
-
-    with col2:
-        st.subheader("Risk Distribution")
-        st.bar_chart(df["risk"].value_counts())
+    st.subheader("Risk Distribution")
+    st.bar_chart(df["risk"].value_counts())
 
     st.subheader("NAV Comparison")
     st.bar_chart(df.set_index("name")["nav"])
 
-# ---------------- LOGIC ---------------- #
+# ---------------- SEARCH LOGIC ---------------- #
 
 if question:
     q = question.lower()
-    results = df[df["name"].str.lower().str.contains(q)]
+
+    results = df[
+        df["name"].str.lower().str.contains(q) |
+        df["category"].str.lower().str.contains(q) |
+        df["risk"].str.lower().str.contains(q)
+    ]
 
     if not results.empty:
         st.success(f"{len(results)} Fund(s) Found")
