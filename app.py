@@ -11,7 +11,7 @@ if "chat_history" not in st.session_state:
 # ---------------- HEADER ---------------- #
 
 st.title("🤖 Mutual Fund AI Chatbot")
-st.caption("Facts-only assistant with smart recommendations")
+st.caption("Facts-only assistant with smart ranking + portfolio logic")
 
 # ---------------- SIDEBAR ---------------- #
 
@@ -27,6 +27,11 @@ horizon = st.sidebar.selectbox(
     ["Any", "Short Term (1-3 years)", "Medium Term (3-5 years)", "Long Term (5+ years)"]
 )
 
+sort_option = st.sidebar.selectbox(
+    "Sort By",
+    ["Default", "NAV Low → High", "NAV High → Low", "Risk Level"]
+)
+
 # ---------------- DATA ---------------- #
 
 funds = [
@@ -40,7 +45,24 @@ funds = [
 
 df = pd.DataFrame(funds)
 
-# ---------------- CHAT DISPLAY ---------------- #
+# ---------------- APPLY FILTERS ---------------- #
+
+if category_filter != "All":
+    df = df[df["category"] == category_filter]
+
+# ---------------- APPLY SORTING (FIXED) ---------------- #
+
+if sort_option == "NAV Low → High":
+    df = df.sort_values("nav", ascending=True)
+
+elif sort_option == "NAV High → High" or sort_option == "NAV High → Low":
+    df = df.sort_values("nav", ascending=False)
+
+elif sort_option == "Risk Level":
+    risk_map = {"Low": 1, "Moderate": 2, "High": 3}
+    df = df.sort_values("risk", key=lambda x: x.map(risk_map))
+
+# ---------------- CHAT UI ---------------- #
 
 for msg in st.session_state.chat_history:
     with st.chat_message(msg["role"]):
@@ -53,7 +75,7 @@ question = st.chat_input("Ask: safe long term fund, balanced portfolio, etc.")
 def detect_intent(text):
     t = text.lower()
 
-    if "safe" in t or "low risk" in t:
+    if "safe" in t:
         return "safe"
     if "long" in t:
         return "long_term"
@@ -70,7 +92,7 @@ def score_fund(fund, horizon, intent):
 
     score = 0
 
-    # Risk
+    # Risk scoring
     if fund["risk"] == "Low":
         score += 5
     elif fund["risk"] == "Moderate":
@@ -78,7 +100,7 @@ def score_fund(fund, horizon, intent):
     else:
         score += 1
 
-    # Category
+    # Category scoring
     if fund["category"] == "Equity":
         score += 4
     elif fund["category"] == "Hybrid":
@@ -140,11 +162,11 @@ Horizon: {horizon}
 🏆 Top Recommendation: {top3[0]['name']}
 """
 
-    # store chat history
+    # save chat
     st.session_state.chat_history.append({"role": "user", "content": question})
     st.session_state.chat_history.append({"role": "assistant", "content": response})
 
-    # show assistant response
+    # show response
     with st.chat_message("assistant"):
         st.markdown(response)
 
@@ -161,4 +183,4 @@ Horizon: {horizon}
 
 # ---------------- FOOTER ---------------- #
 
-st.caption("💡 Try: 'safe long term fund' | 'balanced portfolio' | 'short term debt'")
+st.caption("💡 Tip: Try 'safe long term fund' or 'balanced portfolio'")
