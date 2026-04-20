@@ -48,6 +48,52 @@ funds = [
 ]
 
 df = pd.DataFrame(funds)
+# ---------------- SMART ENGINE FUNCTIONS ---------------- #
+
+def score_fund(fund, intent="neutral"):
+    score = 0
+
+    # Risk scoring
+    if fund["risk"] == "Low":
+        score += 5
+    elif fund["risk"] == "Moderate":
+        score += 3
+    else:
+        score += 1
+
+    # Category scoring
+    if fund["category"] == "Equity":
+        score += 4
+    elif fund["category"] == "Hybrid":
+        score += 3
+    else:
+        score += 2
+
+    # NAV stability
+    if 40 <= fund["nav"] <= 120:
+        score += 2
+
+    # Intent boost
+    if intent == "long_term" and fund["category"] == "Equity":
+        score += 2
+
+    if intent == "safe" and fund["risk"] == "Low":
+        score += 3
+
+    return score
+
+
+def detect_intent(text):
+    t = text.lower()
+
+    if "long" in t or "5 year" in t or "best" in t:
+        return "long_term"
+    elif "safe" in t or "low risk" in t:
+        return "safe"
+    elif "short" in t:
+        return "short_term"
+    else:
+        return "neutral"
 
 # ---------------- DASHBOARD ---------------- #
 
