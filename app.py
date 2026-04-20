@@ -1,11 +1,11 @@
 import streamlit as st
 import pandas as pd
 
-st.set_page_config(page_title="Groww Mutual Fund Assistant", layout="wide")
+st.set_page_config(page_title="Mutual Fund AI Assistant", layout="wide")
 
 # ---------------- HEADER ---------------- #
 
-st.title("📊 Groww Mutual Fund Facts Assistant")
+st.title("📊 Groww Mutual Fund AI Assistant")
 st.caption("Facts-only. No investment advice.")
 
 # ---------------- SIDEBAR ---------------- #
@@ -27,6 +27,12 @@ sort_option = st.sidebar.selectbox(
     ["Default", "NAV High → Low", "NAV Low → High", "Risk Level"]
 )
 
+# ---------------- INPUTS ---------------- #
+
+question = st.text_input("💬 Ask (e.g. 'safe long term fund')")
+
+amount = st.number_input("💰 Investment Amount (₹)", min_value=1000, step=1000)
+
 # ---------------- DATA ---------------- #
 
 funds = [
@@ -42,7 +48,7 @@ df = pd.DataFrame(funds)
 
 # ---------------- DASHBOARD ---------------- #
 
-with st.expander("📊 Fund Analytics Dashboard", expanded=False):
+with st.expander("📊 Analytics Dashboard", expanded=False):
 
     col1, col2 = st.columns(2)
 
@@ -57,11 +63,6 @@ with st.expander("📊 Fund Analytics Dashboard", expanded=False):
     st.subheader("NAV Comparison")
     st.bar_chart(df.set_index("name")["nav"])
 
-# ---------------- INPUT ---------------- #
-
-question = st.text_input("Ask your question (e.g., safe long term fund)")
-amount = st.number_input("💰 Enter Investment Amount (₹)", min_value=1000, step=1000)
-
 # ---------------- INTENT DETECTION ---------------- #
 
 def detect_intent(text):
@@ -69,11 +70,11 @@ def detect_intent(text):
 
     if "safe" in t or "low risk" in t:
         return "safe"
-    if "long" in t or "5 year" in t:
+    if "long" in t:
         return "long_term"
     if "short" in t:
         return "short_term"
-    if "balanced" in t or "medium" in t:
+    if "balanced" in t:
         return "balanced"
 
     return "neutral"
@@ -128,30 +129,21 @@ def score_fund(fund, horizon, intent):
         score += 4
 
     return score
-    def build_portfolio(funds, horizon):
+
+# ---------------- PORTFOLIO BUILDER ---------------- #
+
+def build_portfolio(funds, horizon, amount):
 
     portfolio = []
 
     if horizon == "Short Term (1-3 years)":
-        allocation = {
-            "Debt": 0.60,
-            "Hybrid": 0.30,
-            "Equity": 0.10
-        }
+        allocation = {"Debt": 0.60, "Hybrid": 0.30, "Equity": 0.10}
 
     elif horizon == "Medium Term (3-5 years)":
-        allocation = {
-            "Debt": 0.30,
-            "Hybrid": 0.40,
-            "Equity": 0.30
-        }
+        allocation = {"Debt": 0.30, "Hybrid": 0.40, "Equity": 0.30}
 
-    else:  # Long term
-        allocation = {
-            "Debt": 0.10,
-            "Hybrid": 0.30,
-            "Equity": 0.60
-        }
+    else:
+        allocation = {"Debt": 0.10, "Hybrid": 0.30, "Equity": 0.60}
 
     for category, weight in allocation.items():
 
@@ -159,6 +151,7 @@ def score_fund(fund, horizon, intent):
 
         if category_funds:
             best = max(category_funds, key=lambda x: x["score"])
+
             portfolio.append({
                 "fund": best["name"],
                 "category": category,
@@ -187,7 +180,7 @@ elif sort_option == "Risk Level":
     risk_map = {"Low": 1, "Moderate": 2, "High": 3}
     filtered_df = filtered_df.sort_values("risk", key=lambda x: x.map(risk_map))
 
-# ---------------- MAIN CHATBOT LOGIC ---------------- #
+# ---------------- MAIN LOGIC ---------------- #
 
 if question:
 
@@ -195,27 +188,16 @@ if question:
 
     ranked = []
 
-    # assign scores first
-for fund in filtered_df.to_dict("records"):
-    fund["score"] = score_fund(fund, horizon, intent)
-
-# build portfolio
-portfolio = build_portfolio(filtered_df.to_dict("records"), horizon)
-
-st.markdown("## 💼 Suggested Portfolio Allocation")
-
-for item in portfolio:
-    st.info(
-        f"{item['fund']} ({item['category']})\n"
-        f"Allocation: {item['allocation_pct']}% → ₹{item['amount']}"
-    )
+    for fund in filtered_df.to_dict("records"):
+        fund["score"] = score_fund(fund, horizon, intent)
+        ranked.append(fund)
 
     ranked = sorted(ranked, key=lambda x: x["score"], reverse=True)
 
     st.markdown("## 🤖 Smart Recommendations")
 
-    st.write("**Intent detected:**", intent)
-    st.write("**Horizon selected:**", horizon)
+    st.write("Intent:", intent)
+    st.write("Horizon:", horizon)
 
     for i, fund in enumerate(ranked[:3]):
         medal = ["🥇", "🥈", "🥉"][i]
@@ -228,5 +210,17 @@ for item in portfolio:
 
         st.markdown("---")
 
+    # ---------------- PORTFOLIO OUTPUT ---------------- #
+
+    portfolio = build_portfolio(ranked, horizon, amount)
+
+    st.markdown("## 💼 Suggested Portfolio Allocation")
+
+    for item in portfolio:
+        st.info(
+            f"{item['fund']} ({item['category']})\n"
+            f"{item['allocation_pct']}% → ₹{item['amount']}"
+        )
+
 else:
-    st.info("Type a query like: 'safe long term fund' or use filters")
+    st.info("Enter a query like 'safe long term fund' to begin")
