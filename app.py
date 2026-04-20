@@ -75,7 +75,7 @@ for fund in funds:
         if fund["category"] in ["Hybrid", "Equity"] and fund["risk"] in ["Low", "Moderate"]:
             matches.append(fund)
 
-    elif horizon == "Long Term (5+ years)" or is_long_term_query:
+    elif horizon == "Long Term (5+ years)": or is_long_term_query:
         if fund["category"] == "Equity" and fund["risk"] in ["Low", "Moderate"]:
             matches.append(fund)
 
