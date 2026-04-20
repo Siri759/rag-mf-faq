@@ -112,9 +112,14 @@ if question:
             risk_order = {"Low": 1, "Moderate": 2, "High": 3}
             matches = sorted(matches, key=lambda x: risk_order[x["risk"]])
         if is_long_term_query:
-            matches = sorted(matches, key=lambda x: calculate_score(x), reverse=True)
+    ranked = sorted(matches, key=lambda x: calculate_score(x), reverse=True)
+    top3 = ranked[:3]
 
-        st.success(f"{len(matches)} Fund(s) Found ✅")
+    st.markdown("## 🏆 Top 3 Recommended Funds")
+
+    for i, fund in enumerate(top3):
+        medal = ["🥇", "🥈", "🥉"][i]
+        st.success(f"{medal} {fund['name']} (Score: {calculate_score(fund)})")
 
         for index, fund in enumerate(matches):
             st.markdown("---")
