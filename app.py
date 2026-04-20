@@ -77,7 +77,7 @@ for fund in funds:
 
     elif horizon == "Long Term (5+ years)":
            if fund["category"] == "Equity" and fund["risk"] in ["Low", "Moderate"]:
-        matches.append(fund)
+                matches.append(fund)
 
     # Normal search if no horizon selected
     else:
