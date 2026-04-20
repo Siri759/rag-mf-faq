@@ -24,11 +24,7 @@ question = st.text_input("Ask your question (enter scheme name)")
 if question:
     question_lower = question.lower()
     matches = []
-    # Smart long-term recommendation logic
-long_term_keywords = ["long term", "long-term", "safe", "best"]
-
-is_long_term_query = any(keyword in question_lower for keyword in long_term_keywords)
-
+    
     for fund in funds:
         if (
             question_lower in fund["name"].lower()
