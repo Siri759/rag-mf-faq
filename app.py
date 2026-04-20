@@ -47,19 +47,18 @@ funds = [
 
 df = pd.DataFrame(funds)
 
-# ---------------- ANALYTICS DASHBOARD (ONLY ONCE) ---------------- #
+# ---------------- ANALYTICS DASHBOARD (VISIBLE FIX) ---------------- #
 
-with st.expander("📊 Fund Analytics Dashboard", expanded=False):
+st.markdown("## 📊 Fund Analytics Dashboard")
 
-    st.subheader("Category Distribution")
-    st.bar_chart(df["category"].value_counts())
+st.subheader("Category Distribution")
+st.bar_chart(df["category"].value_counts())
 
-    st.subheader("Risk Distribution")
-    st.bar_chart(df["risk"].value_counts())
+st.subheader("Risk Distribution")
+st.bar_chart(df["risk"].value_counts())
 
-    st.subheader("NAV Comparison of All Funds")
-    st.bar_chart(df.set_index("name")["nav"])
-
+st.subheader("NAV Comparison of All Funds")
+st.bar_chart(df.set_index("name")["nav"])
 # ---------------- USER INPUT ---------------- #
 
 question = st.text_input("Ask your question (enter scheme name or intent)")
