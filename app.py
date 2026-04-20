@@ -70,8 +70,8 @@ if question:
             with st.container():
                 st.markdown("---")
 
-                if is_long_term_query and fund["risk"] == "Low":
-                    st.info("⭐ Recommended for Long Term Investment")
+                if is_long_term_query:
+    matches = sorted(matches, key=lambda x: calculate_score(x), reverse=True)
 
                 st.subheader(fund["name"])
 
