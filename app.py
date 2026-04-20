@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+
 st.set_page_config(page_title="Groww Mutual Fund Facts Assistant", layout="wide")
 
 st.title("📊 Groww Mutual Fund Facts Assistant")
@@ -43,10 +44,49 @@ funds = [
     {"name": "DSP Midcap Fund", "category": "Equity", "nav": 98.42, "risk": "High"},
     {"name": "Tata Digital India Fund", "category": "Equity", "nav": 132.10, "risk": "High"},
 ]
+
 df = pd.DataFrame(funds)
+
+# ---------------- ANALYTICS DASHBOARD (FIXED POSITION) ---------------- #
+
+st.markdown("## 📊 Fund Analytics Dashboard")
+
+col1, col2 = st.columns(2)
+
+with col1:
+    st.subheader("Category Distribution")
+    st.bar_chart(df["category"].value_counts())
+
+with col2:
+    st.subheader("Risk Distribution")
+    st.bar_chart(df["risk"].value_counts())
+
+st.subheader("NAV Comparison of All Funds")
+st.bar_chart(df.set_index("name")["nav"])
+
 # ---------------- USER INPUT ---------------- #
 
-question = st.text_input("Ask your question (enter scheme name)")
+question = st.text_input("Ask your question (enter scheme name or intent)")
+
+# ---------------- SCORING FUNCTION ---------------- #
+
+def calculate_score(fund):
+    score = 0
+
+    if fund["risk"] == "Low":
+        score += 5
+    elif fund["risk"] == "Moderate":
+        score += 3
+    else:
+        score += 1
+
+    if fund["category"] == "Equity":
+        score += 4
+
+    if 40 <= fund["nav"] <= 120:
+        score += 2
+
+    return score
 
 # ---------------- MAIN LOGIC ---------------- #
 
@@ -55,71 +95,23 @@ if question:
     question_lower = question.lower()
     matches = []
 
-    # Detect long-term intent
     long_term_keywords = ["long term", "long-term", "safe", "best"]
     is_long_term_query = any(word in question_lower for word in long_term_keywords)
-# ---------------- ANALYTICS DASHBOARD ---------------- #
-
-st.markdown("## 📊 Fund Analytics Dashboard")
-
-# Category Distribution
-st.subheader("📊 Category Distribution")
-category_counts = df["category"].value_counts()
-st.bar_chart(category_counts)
-
-# Risk Distribution
-st.subheader("📊 Risk Distribution")
-risk_counts = df["risk"].value_counts()
-st.bar_chart(risk_counts)
-
-# NAV Comparison
-st.subheader("📈 NAV Comparison of All Funds")
-nav_df = df.set_index("name")["nav"]
-st.bar_chart(nav_df)
-
-    # ---------- Scoring Function ---------- #
-
-    def calculate_score(fund):
-        score = 0
-
-        # Risk weight
-        if fund["risk"] == "Low":
-            score += 5
-        elif fund["risk"] == "Moderate":
-            score += 3
-        else:
-            score += 1
-
-        # Equity preference
-        if fund["category"] == "Equity":
-            score += 4
-
-        # NAV stability bonus
-        if 40 <= fund["nav"] <= 120:
-            score += 2
-
-        return score
-
-    # ---------- Matching Logic ---------- #
 
     for fund in funds:
 
-        # Long term + equity intent
         if "long" in question_lower and "equity" in question_lower:
             if fund["category"] == "Equity" and fund["risk"] in ["Low", "Moderate"]:
                 matches.append(fund)
 
-        # Short term safe
         elif "short" in question_lower and "safe" in question_lower:
             if fund["category"] == "Debt" and fund["risk"] == "Low":
                 matches.append(fund)
 
-        # Medium term balanced
         elif "medium" in question_lower or "balanced" in question_lower:
             if fund["category"] in ["Hybrid", "Equity"] and fund["risk"] in ["Low", "Moderate"]:
                 matches.append(fund)
 
-        # Default keyword search
         else:
             if (
                 question_lower in fund["name"].lower()
@@ -129,11 +121,10 @@ st.bar_chart(nav_df)
                 if category_filter == "All" or fund["category"] == category_filter:
                     matches.append(fund)
 
-    # ---------- OUTPUT ---------- #
+    # ---------------- OUTPUT ---------------- #
 
     if matches:
 
-        # Apply Sorting
         if sort_option == "NAV (High to Low)":
             matches = sorted(matches, key=lambda x: x["nav"], reverse=True)
 
@@ -144,7 +135,6 @@ st.bar_chart(nav_df)
             risk_order = {"Low": 1, "Moderate": 2, "High": 3}
             matches = sorted(matches, key=lambda x: risk_order[x["risk"]])
 
-        # Top 3 Recommendation Section
         if is_long_term_query:
             ranked = sorted(matches, key=lambda x: calculate_score(x), reverse=True)
             top3 = ranked[:3]
@@ -157,7 +147,6 @@ st.bar_chart(nav_df)
 
         st.success(f"{len(matches)} Fund(s) Found ✅")
 
-        # Display All Results
         for index, fund in enumerate(matches):
 
             st.markdown("---")
@@ -174,10 +163,10 @@ st.bar_chart(nav_df)
 
             with col1:
                 st.metric("NAV", fund["nav"])
-                st.write("**Category:**", fund["category"])
+                st.write("Category:", fund["category"])
 
             with col2:
-                st.write("**Risk Level:**", fund["risk"])
+                st.write("Risk Level:", fund["risk"])
 
     else:
         st.error("No matching fund found.")
