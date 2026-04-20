@@ -1,214 +1,156 @@
 import streamlit as st
 import pandas as pd
+import requests
 
-st.set_page_config(page_title="Mutual Fund AI Chatbot", layout="wide")
+# ---------------- PAGE CONFIG ---------------- #
 
-# ---------------- MEMORY ---------------- #
+st.set_page_config(page_title="AI Mutual Fund Advisor", layout="wide")
 
-if "chat_history" not in st.session_state:
-    st.session_state.chat_history = []
+st.title("📊 AI Mutual Fund Advisor (Production Prototype)")
+st.caption("Live data + ML ranking + portfolio intelligence")
 
-# ---------------- HEADER ---------------- #
+# ---------------- CACHE DATA LAYER ---------------- #
 
-st.title("🤖 Mutual Fund AI Chatbot")
-st.caption("Facts-only + Quant analytics + Portfolio insights")
+@st.cache_data
+def load_funds(limit=50):
 
-# ---------------- SIDEBAR ---------------- #
+    url = "https://api.mfapi.in/mf"
+    res = requests.get(url)
+    data = res.json()
 
-st.sidebar.header("Filters")
+    funds = []
 
-category_filter = st.sidebar.selectbox(
-    "Category",
-    ["All", "Equity", "Debt", "Hybrid"]
-)
+    for item in data[:limit]:
 
-horizon = st.sidebar.selectbox(
-    "Investment Horizon",
-    ["Any", "Short Term (1-3 years)", "Medium Term (3-5 years)", "Long Term (5+ years)"]
-)
+        code = item["schemeCode"]
+        name = item["schemeName"]
 
-sort_option = st.sidebar.selectbox(
-    "Sort By",
-    ["Default", "NAV Low → High", "NAV High → Low", "Risk Level"]
-)
+        try:
+            nav_data = requests.get(f"https://api.mfapi.in/mf/{code}").json()
+            nav = float(nav_data["data"][0]["nav"])
+        except:
+            nav = 50
 
-# ---------------- DATA ---------------- #
+        funds.append({
+            "name": name,
+            "nav": nav,
+            "code": code
+        })
 
-funds = [
-    {"name": "Axis Bluechip Fund", "category": "Equity", "nav": 52.3, "risk": "Low"},
-    {"name": "SBI Small Cap Fund", "category": "Equity", "nav": 110.2, "risk": "High"},
-    {"name": "HDFC Hybrid Fund", "category": "Hybrid", "nav": 45.1, "risk": "Moderate"},
-    {"name": "ICICI Tech Fund", "category": "Equity", "nav": 150.4, "risk": "High"},
-    {"name": "HDFC Corporate Bond", "category": "Debt", "nav": 32.1, "risk": "Low"},
-    {"name": "Parag Parikh Flexi Cap", "category": "Equity", "nav": 65.9, "risk": "Moderate"},
-]
+    return pd.DataFrame(funds)
 
-df = pd.DataFrame(funds)
+# ---------------- FEATURE ENGINEERING ---------------- #
 
-# ---------------- FILTER ---------------- #
+def build_features(df):
 
-if category_filter != "All":
-    df = df[df["category"] == category_filter]
+    df = df.copy()
 
-# ---------------- SORTING FIXED ---------------- #
+    df["nav_scaled"] = df["nav"] / df["nav"].max()
 
-if sort_option == "NAV Low → High":
-    df = df.sort_values("nav", ascending=True)
+    df["risk_score"] = df["nav"].apply(
+        lambda x: 80 if x < 60 else 60 if x < 100 else 40
+    )
 
-elif sort_option == "NAV High → Low":
-    df = df.sort_values("nav", ascending=False)
+    return df
 
-elif sort_option == "Risk Level":
-    risk_map = {"Low": 1, "Moderate": 2, "High": 3}
-    df = df.sort_values("risk", key=lambda x: x.map(risk_map))
+# ---------------- ML RECOMMENDER ---------------- #
 
-# ---------------- CHAT UI ---------------- #
+def recommend(df, intent="balanced"):
 
-for msg in st.session_state.chat_history:
-    with st.chat_message(msg["role"]):
-        st.markdown(msg["content"])
+    df = df.copy()
 
-question = st.chat_input("Ask: safe long term fund, balanced portfolio, etc.")
+    weights = {
+        "safe": {"risk": 0.7, "nav": 0.3},
+        "balanced": {"risk": 0.5, "nav": 0.5},
+        "growth": {"risk": 0.3, "nav": 0.7}
+    }
 
-# ---------------- INTENT ---------------- #
+    w = weights.get(intent, weights["balanced"])
 
-def detect_intent(text):
-    t = text.lower()
+    df["score"] = (
+        df["risk_score"] * w["risk"] +
+        df["nav_scaled"] * 100 * w["nav"]
+    )
 
-    if "safe" in t:
-        return "safe"
-    if "long" in t:
-        return "long_term"
-    if "short" in t:
-        return "short_term"
-    if "balanced" in t:
-        return "balanced"
+    return df.sort_values("score", ascending=False)
 
-    return "neutral"
+# ---------------- UI TABS ---------------- #
 
-# ---------------- SCORING ENGINE ---------------- #
+tab1, tab2, tab3 = st.tabs(["🤖 Chat Advisor", "💼 Portfolio", "📊 Analytics"])
 
-def score_fund(fund, horizon, intent):
+# ---------------- LOAD DATA ---------------- #
 
-    score = 0
+df = load_funds()
+df = build_features(df)
 
-    if fund["risk"] == "Low":
-        score += 5
-    elif fund["risk"] == "Moderate":
-        score += 3
-    else:
-        score += 1
+# ================= CHAT TAB ================= #
 
-    if fund["category"] == "Equity":
-        score += 4
-    elif fund["category"] == "Hybrid":
-        score += 3
-    else:
-        score += 2
+with tab1:
 
-    if 40 <= fund["nav"] <= 120:
-        score += 2
+    st.subheader("Ask your financial query")
 
-    if horizon == "Short Term (1-3 years)" and fund["category"] == "Debt":
-        score += 4
+    query = st.chat_input("Example: safe fund, growth portfolio, balanced plan")
 
-    if horizon == "Medium Term (3-5 years)" and fund["category"] == "Hybrid":
-        score += 4
+    if query:
 
-    if horizon == "Long Term (5+ years)" and fund["category"] == "Equity":
-        score += 5
+        if "safe" in query:
+            intent = "safe"
+        elif "growth" in query:
+            intent = "growth"
+        else:
+            intent = "balanced"
 
-    if intent == "safe" and fund["risk"] == "Low":
-        score += 4
+        results = recommend(df, intent).head(5)
 
-    if intent == "long_term" and fund["category"] == "Equity":
-        score += 3
+        with st.chat_message("assistant"):
 
-    if intent == "balanced" and fund["category"] == "Hybrid":
-        score += 4
+            st.success(f"Intent detected: {intent}")
 
-    return score
+            st.markdown("### 🏆 Top Recommendations")
 
-# ---------------- RISK SCORE (NUMERIC) ---------------- #
+            for i, row in enumerate(results.itertuples()):
+                st.write(f"🥇 {i+1}. {row.name}")
+                st.write("NAV:", round(row.nav, 2))
+                st.write("Score:", round(row.score, 2))
+                st.markdown("---")
 
-def risk_score(fund):
-    if fund["risk"] == "Low":
-        return 80
-    elif fund["risk"] == "Moderate":
-        return 60
-    else:
-        return 40
+# ================= PORTFOLIO TAB ================= #
 
-# ---------------- CHAT LOGIC ---------------- #
+with tab2:
 
-if question:
+    st.subheader("💼 Auto Portfolio Builder")
 
-    intent = detect_intent(question)
+    portfolio = recommend(df, "balanced").head(3)
 
-    ranked = []
+    allocation = [50, 30, 20]
 
-    for fund in df.to_dict("records"):
-        fund["score"] = score_fund(fund, horizon, intent)
-        ranked.append(fund)
+    total_investment = st.number_input("Enter Investment (₹)", min_value=1000, step=1000)
 
-    ranked = sorted(ranked, key=lambda x: x["score"], reverse=True)
+    for i, row in enumerate(portfolio.itertuples()):
 
-    top3 = ranked[:3]
+        st.info(
+            f"{row.name}\n"
+            f"Allocation: {allocation[i]}% → ₹{int(total_investment * allocation[i] / 100)}"
+        )
 
-    # ---------------- ANALYTICS ---------------- #
+# ================= ANALYTICS TAB ================= #
 
-    avg_nav = sum(f["nav"] for f in top3) / len(top3)
-    avg_risk = sum(risk_score(f) for f in top3) / len(top3)
+with tab3:
 
-    equity = sum(1 for f in top3 if f["category"] == "Equity")
-    debt = sum(1 for f in top3 if f["category"] == "Debt")
-    hybrid = sum(1 for f in top3 if f["category"] == "Hybrid")
+    st.subheader("📊 Market Analytics Dashboard")
 
-    portfolio_strength = (avg_risk + (equity * 20) + (hybrid * 15) + (debt * 10)) / 3
+    col1, col2 = st.columns(2)
 
-    # ---------------- RESPONSE ---------------- #
+    with col1:
+        st.write("NAV Distribution")
+        st.bar_chart(df["nav"])
 
-    response = f"""
-📊 Analysis Complete
+    with col2:
+        st.write("Risk Score Distribution")
+        st.bar_chart(df["risk_score"])
 
-Intent: {intent}
-Horizon: {horizon}
+    st.subheader("📈 Summary Stats")
 
-🏆 Top Fund: {top3[0]['name']}
-"""
-
-    st.session_state.chat_history.append({"role": "user", "content": question})
-    st.session_state.chat_history.append({"role": "assistant", "content": response})
-
-    with st.chat_message("assistant"):
-        st.markdown(response)
-
-        st.markdown("### 🏆 Top 3 Funds")
-
-        for i, f in enumerate(top3):
-            medal = ["🥇", "🥈", "🥉"][i]
-
-            st.success(f"{medal} {f['name']}")
-            st.write("Category:", f["category"])
-            st.write("Risk:", f["risk"])
-            st.write("NAV:", f["nav"])
-            st.write("Risk Score:", risk_score(f))
-            st.markdown("---")
-
-        # ---------------- ANALYTICS UI ---------------- #
-
-        st.markdown("## 📊 Portfolio Analytics")
-
-        st.write("📈 Avg NAV:", round(avg_nav, 2))
-        st.write("⚖️ Avg Risk Score:", round(avg_risk, 2))
-
-        st.markdown("### Allocation")
-        st.write("Equity:", equity)
-        st.write("Debt:", debt)
-        st.write("Hybrid:", hybrid)
-
-        st.success(f"💡 Portfolio Strength Score: {round(portfolio_strength, 2)} / 100")
-
-# ---------------- FOOTER ---------------- #
-
-st.caption("💡 Try: 'safe long term fund' | 'balanced portfolio' | 'short term debt'")
+    st.write("Total Funds:", len(df))
+    st.write("Avg NAV:", round(df["nav"].mean(), 2))
+    st.write("Max NAV:", round(df["nav"].max(), 2))
