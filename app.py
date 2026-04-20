@@ -22,8 +22,8 @@ funds = [
 question = st.text_input("Ask your question (enter scheme name)")
 
 if question:
-    found = False
     question_lower = question.lower()
+    matches = []
 
     for fund in funds:
         if (
@@ -32,7 +32,15 @@ if question:
             or question_lower in fund["risk"].lower()
         ):
             if category_filter == "All" or fund["category"] == category_filter:
-                st.success("Fund Found ✅")
+                matches.append(fund)
+
+    if matches:
+        st.success(f"{len(matches)} Fund(s) Found ✅")
+
+        for fund in matches:
+            with st.container():
+                st.markdown("---")
+                st.subheader(fund["name"])
 
                 col1, col2 = st.columns(2)
 
@@ -42,9 +50,5 @@ if question:
 
                 with col2:
                     st.write("**Risk Level:**", fund["risk"])
-                    st.write("**Scheme Name:**", fund["name"])
-
-                found = True
-
-    if not found:
+    else:
         st.error("No matching fund found.")
