@@ -62,22 +62,30 @@ if question:
         return score
 
         # Matching logic
-    for fund in funds:
+for fund in funds:
 
-        # Smart long-term filtering
-        if is_long_term_query:
-            if fund["category"] == "Equity" and fund["risk"] in ["Low", "Moderate"]:
+    # Horizon-based filtering
+    if horizon == "Short Term (1-3 years)":
+        if fund["category"] == "Debt" and fund["risk"] == "Low":
+            matches.append(fund)
+
+    elif horizon == "Medium Term (3-5 years)":
+        if fund["category"] in ["Hybrid", "Equity"] and fund["risk"] in ["Low", "Moderate"]:
+            matches.append(fund)
+
+    elif horizon == "Long Term (5+ years)" or is_long_term_query:
+        if fund["category"] == "Equity" and fund["risk"] in ["Low", "Moderate"]:
+            matches.append(fund)
+
+    # Normal search if no horizon selected
+    else:
+        if (
+            question_lower in fund["name"].lower()
+            or question_lower in fund["category"].lower()
+            or question_lower in fund["risk"].lower()
+        ):
+            if category_filter == "All" or fund["category"] == category_filter:
                 matches.append(fund)
-
-        # Normal keyword search
-        else:
-            if (
-                question_lower in fund["name"].lower()
-                or question_lower in fund["category"].lower()
-                or question_lower in fund["risk"].lower()
-            ):
-                if category_filter == "All" or fund["category"] == category_filter:
-                    matches.append(fund)
 
     if matches:
 
