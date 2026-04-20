@@ -34,7 +34,20 @@ question = st.text_input("Ask your question (enter scheme name)")
 
 if question:
     question_lower = question.lower()
-    matches = []
+    matches = [def calculate_score(fund):
+    score = 0
+    
+    if fund["risk"] == "Low":
+        score += 3
+    elif fund["risk"] == "Moderate":
+        score += 2
+    else:
+        score += 1
+
+    if fund["category"] == "Equity":
+        score += 2
+
+    return score]
 
     # Smart long-term recommendation logic
     long_term_keywords = ["long term", "long-term", "safe", "best"]
