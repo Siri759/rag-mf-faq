@@ -94,7 +94,16 @@ if question:
 
     # OUTPUT SECTION
     if matches:
-
+       # Apply Sorting
+        if sort_option == "NAV (High to Low)":
+            matches = sorted(matches, key=lambda x: x["nav"], reverse=True)
+        
+        elif sort_option == "NAV (Low to High)":
+            matches = sorted(matches, key=lambda x: x["nav"])
+        
+        elif sort_option == "Risk Level":
+            risk_order = {"Low": 1, "Moderate": 2, "High": 3}
+            matches = sorted(matches, key=lambda x: risk_order[x["risk"]])
         if is_long_term_query:
             matches = sorted(matches, key=lambda x: calculate_score(x), reverse=True)
 
