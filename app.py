@@ -8,6 +8,25 @@ st.set_page_config(page_title="Groww Mutual Fund Facts Assistant", layout="wide"
 st.title("📊 Groww Mutual Fund Facts Assistant")
 st.caption("Facts-only. No investment advice.")
 
+# ---------------- SIDEBAR FILTERS ---------------- #
+
+st.sidebar.header("Filter Options")
+
+category_filter = st.sidebar.selectbox(
+    "Category",
+    ["All", "Equity", "Debt", "Hybrid"]
+)
+
+horizon = st.sidebar.selectbox(
+    "Investment Horizon",
+    ["Any", "Short Term (1-3 years)", "Medium Term (3-5 years)", "Long Term (5+ years)"]
+)
+
+sort_option = st.sidebar.selectbox(
+    "Sort By",
+    ["Default", "NAV (High to Low)", "NAV (Low to High)", "Risk Level"]
+)
+
 # ---------------- DATA ---------------- #
 
 funds = [
@@ -30,13 +49,9 @@ funds = [
 
 df = pd.DataFrame(funds)
 
-# ---------------- INPUT ---------------- #
-
-question = st.text_input("Ask your question (scheme name, category, risk, or keyword)")
-
 # ---------------- DASHBOARD ---------------- #
 
-with st.expander("📊 Fund Analytics Dashboard (Click to view)", expanded=False):
+with st.expander("📊 Fund Analytics Dashboard", expanded=False):
 
     col1, col2 = st.columns(2)
 
@@ -48,19 +63,41 @@ with st.expander("📊 Fund Analytics Dashboard (Click to view)", expanded=False
         st.subheader("Risk Distribution")
         st.bar_chart(df["risk"].value_counts())
 
-    st.subheader("NAV Comparison of All Funds")
+    st.subheader("NAV Comparison")
     st.bar_chart(df.set_index("name")["nav"])
 
-# ---------------- LOGIC ---------------- #
+# ---------------- SEARCH ---------------- #
+
+question = st.text_input("Ask your question (scheme name or intent)")
+
+# ---------------- FILTERING ---------------- #
+
+filtered_df = df.copy()
+
+if category_filter != "All":
+    filtered_df = filtered_df[filtered_df["category"] == category_filter]
+
+# ---------------- SORTING ---------------- #
+
+if sort_option == "NAV (High to Low)":
+    filtered_df = filtered_df.sort_values(by="nav", ascending=False)
+
+elif sort_option == "NAV (Low to High)":
+    filtered_df = filtered_df.sort_values(by="nav", ascending=True)
+
+elif sort_option == "Risk Level":
+    risk_map = {"Low": 1, "Moderate": 2, "High": 3}
+    filtered_df = filtered_df.sort_values(by="risk", key=lambda x: x.map(risk_map))
+
+# ---------------- SEARCH LOGIC ---------------- #
 
 if question:
-
     q = question.lower()
 
-    results = df[
-        df["name"].str.lower().str.contains(q) |
-        df["category"].str.lower().str.contains(q) |
-        df["risk"].str.lower().str.contains(q)
+    results = filtered_df[
+        filtered_df["name"].str.lower().str.contains(q) |
+        filtered_df["category"].str.lower().str.contains(q) |
+        filtered_df["risk"].str.lower().str.contains(q)
     ]
 
     if not results.empty:
@@ -82,3 +119,9 @@ if question:
 
     else:
         st.error("No matching fund found.")
+
+# ---------------- DEFAULT VIEW ---------------- #
+
+else:
+    st.info("Use sidebar filters + search to explore mutual funds")
+    st.dataframe(filtered_df)
