@@ -5,14 +5,14 @@ st.set_page_config(page_title="Groww Mutual Fund Facts Assistant", layout="wide"
 st.title("📊 Groww Mutual Fund Facts Assistant")
 st.caption("Facts-only. No investment advice.")
 
-# Sidebar
+# Sidebar Filter
 st.sidebar.header("Filter Options")
 category_filter = st.sidebar.selectbox(
     "Select Category",
     ["All", "Equity", "Debt", "Hybrid"]
 )
 
-# Sample Data
+# Fund Dataset
 funds = [
     {"name": "Axis Bluechip Fund - Growth", "category": "Equity", "nav": 52.34, "risk": "Low"},
     {"name": "SBI Small Cap Fund - Growth", "category": "Equity", "nav": 110.21, "risk": "High"},
@@ -30,14 +30,21 @@ funds = [
     {"name": "DSP Midcap Fund", "category": "Equity", "nav": 98.42, "risk": "High"},
     {"name": "Tata Digital India Fund", "category": "Equity", "nav": 132.10, "risk": "High"},
 ]
+
 question = st.text_input("Ask your question (enter scheme name)")
 
 if question:
     question_lower = question.lower()
     matches = []
-    
+
+    # Long-term detection
+    long_term_keywords = ["long term", "long-term", "safe", "best"]
+    is_long_term_query = any(keyword in question_lower for keyword in long_term_keywords)
+
+    # Scoring function
     def calculate_score(fund):
         score = 0
+
         if fund["risk"] == "Low":
             score += 3
         elif fund["risk"] == "Moderate":
@@ -49,10 +56,8 @@ if question:
             score += 2
 
         return score
-    # Smart long-term recommendation logic
-    long_term_keywords = ["long term", "long-term", "safe", "best"]
-    is_long_term_query = any(keyword in question_lower for keyword in long_term_keywords)
 
+    # Matching logic
     for fund in funds:
         if (
             question_lower in fund["name"].lower()
@@ -64,14 +69,24 @@ if question:
                 matches.append(fund)
 
     if matches:
+
+        # Sort by score if long-term query
+        if is_long_term_query:
+            matches = sorted(matches, key=lambda x: calculate_score(x), reverse=True)
+
         st.success(f"{len(matches)} Fund(s) Found ✅")
 
-        for fund in matches:
+        for index, fund in enumerate(matches):
             with st.container():
                 st.markdown("---")
 
-                if is_long_term_query:
-                    matches = sorted(matches, key=lambda x: calculate_score(x), reverse=True)
+                # Top Pick Badge
+                if index == 0 and is_long_term_query:
+                    st.success("🏆 Top Pick Based on Query")
+
+                # Recommended Badge
+                if is_long_term_query and fund["risk"] == "Low":
+                    st.info("⭐ Recommended for Long Term Investment")
 
                 st.subheader(fund["name"])
 
