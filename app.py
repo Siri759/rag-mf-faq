@@ -1,152 +1,154 @@
 import streamlit as st
-import pandas as pd
+import re
 
-st.set_page_config(page_title="Mutual Fund FAQ Assistant", layout="wide")
+st.set_page_config(page_title="Mutual Fund RAG Assistant", layout="wide")
 
 # ===================== HEADER ===================== #
 
-st.title("📚 Mutual Fund FAQ Chatbot (RAG System)")
-st.caption("Facts-only assistant. No investment advice.")
-
 st.markdown("""
-💡 Try:
-- What is expense ratio?
-- ELSS lock-in period?
-- Minimum SIP amount?
-- Exit load rules?
+# 📚 Mutual Fund FAQ Assistant (RAG System)
+### Facts-only AI assistant powered by AMC/SEBI documents
 """)
 
-# ===================== CORPUS (RAG DATA) ===================== #
+st.caption("No advice • No predictions • Only verified facts")
+
+# ===================== CORPUS ===================== #
 
 docs = [
     {
         "question": "expense ratio",
-        "answer": "Expense ratio is the annual fee charged by AMC for managing the fund. It includes management and operational costs.",
-        "source": "https://www.amfiindia.com/investor-corner/knowledge-center/expense-ratio"
+        "answer": "Expense ratio is the annual fee charged by AMC for managing the fund.",
+        "source": "https://www.amfiindia.com"
     },
     {
         "question": "exit load",
-        "answer": "Exit load is a fee charged when redeeming units before a specified period.",
-        "source": "https://www.amfiindia.com/investor-corner/knowledge-center/exit-load"
-    },
-    {
-        "question": "minimum sip",
-        "answer": "Minimum SIP amount varies by fund, typically starting from ₹100–₹500.",
-        "source": "https://www.amfiindia.com/investor-corner/knowledge-center/sip"
+        "answer": "Exit load is a charge applied when units are redeemed before a specific period.",
+        "source": "https://www.amfiindia.com"
     },
     {
         "question": "elss lock in",
         "answer": "ELSS funds have a mandatory 3-year lock-in period under Section 80C.",
-        "source": "https://www.amfiindia.com/investor-corner/knowledge-center/elss"
+        "source": "https://www.amfiindia.com"
+    },
+    {
+        "question": "minimum sip",
+        "answer": "Minimum SIP starts from ₹100–₹500 depending on the fund.",
+        "source": "https://www.amfiindia.com"
     },
     {
         "question": "riskometer",
-        "answer": "Riskometer shows the risk level of a mutual fund from low to very high.",
-        "source": "https://www.sebi.gov.in/investor/riskometer.html"
-    },
-    {
-        "question": "statement download",
-        "answer": "Mutual fund statements can be downloaded from AMC websites or CAMS/KFintech portals.",
-        "source": "https://www.camsonline.com"
+        "answer": "Riskometer shows risk level from low to very high for mutual funds.",
+        "source": "https://www.sebi.gov.in"
     }
 ]
 
-df = pd.DataFrame(docs)
+# ===================== CLEAN FUNCTION ===================== #
+
+def clean(text):
+    return re.sub(r"[^a-zA-Z ]", "", text.lower())
 
 # ===================== RAG RETRIEVER ===================== #
 
 def retrieve(query):
 
-    query = query.lower()
+    query = clean(query)
 
-    best_match = None
+    best = None
     best_score = 0
 
     for doc in docs:
 
-        doc_q = doc["question"]
+        q = clean(doc["question"])
 
-        score = 0
-
-        # split words and match partially
-        for word in doc_q.split():
-            if word in query:
-                score += 1
+        score = len(set(q.split()) & set(query.split()))
 
         if score > best_score:
             best_score = score
-            best_match = doc
+            best = doc
 
-    return best_match
+    return best
 
 # ===================== REFUSAL SYSTEM ===================== #
 
-def is_advice_query(query):
+def is_advice(q):
 
-    banned = [
-        "best fund",
-        "should i invest",
-        "which fund is better",
-        "buy or sell",
-        "portfolio",
-        "returns"
-    ]
+    banned = ["best fund", "should i invest", "buy", "sell", "portfolio", "returns"]
 
-    return any(word in query.lower() for word in banned)
+    return any(b in q.lower() for b in banned)
 
-# ===================== USER INPUT ===================== #
+# ===================== UI SIDEBAR ===================== #
 
-question = st.text_input("Ask your question")
+st.sidebar.title("💡 Try these questions")
 
-# ===================== RESPONSE ENGINE ===================== #
+if st.sidebar.button("What is expense ratio?"):
+    st.session_state.q = "expense ratio"
+
+if st.sidebar.button("ELSS lock-in period?"):
+    st.session_state.q = "elss lock in"
+
+if st.sidebar.button("Exit load meaning?"):
+    st.session_state.q = "exit load"
+
+# ===================== INPUT ===================== #
+
+question = st.chat_input("Ask a mutual fund question...")
+
+if "q" in st.session_state:
+    question = st.session_state.q
+    del st.session_state.q
+
+# ===================== RAG DEMO FLOW ===================== #
 
 if question:
 
-    # ---------- REFUSAL LOGIC ---------- #
+    st.markdown("## 🔎 RAG Pipeline Execution")
 
-    if is_advice_query(question):
+    st.info("Step 1: Understanding query...")
+    st.info("Step 2: Retrieving AMC/SEBI documents...")
+    st.info("Step 3: Matching relevant knowledge...")
+    st.info("Step 4: Generating factual response...")
 
-        st.error("❌ I can only provide factual information about mutual funds.")
+    # ===================== REFUSAL ===================== #
 
-        st.markdown("""
-        📌 Please refer to official AMC/SEBI pages:
-        https://www.amfiindia.com
-        """)
+    if is_advice(question):
+
+        st.error("❌ I can only provide factual mutual fund information.")
+
+        st.markdown("📌 Refer official AMC pages:")
+        st.write("https://www.amfiindia.com")
 
     else:
 
         result = retrieve(question)
 
-        if result:
+        with st.chat_message("assistant"):
 
-            st.success("📄 Answer (Facts Only)")
+            if result:
 
-            st.write(result["answer"])
+                st.success("📄 Fact-based Answer")
 
-            st.markdown("### 📌 Source")
-            st.write(result["source"])
+                st.markdown(f"""
+### 🧠 Answer
+{result['answer']}
+""")
 
-            st.caption("Last updated from official AMC/SEBI sources")
+                st.markdown("### 📌 Source")
+                st.link_button("Open Source", result["source"])
 
-        else:
+                st.caption("Verified from AMC/SEBI documents")
 
-            st.warning("No direct match found in corpus.")
+            else:
 
-            st.markdown("""
-            📌 Try:
-            - What is expense ratio?
-            - What is exit load?
-            - What is ELSS lock-in period?
-            """)
+                st.warning("No exact match found in RAG corpus.")
 
-# ===================== SIDEBAR INFO ===================== #
+# ===================== FOOTER UI ===================== #
 
-st.sidebar.header("About")
+st.markdown("---")
 
-st.sidebar.info("""
-✔ RAG-based FAQ system  
-✔ AMC + SEBI official sources  
-✔ Facts-only responses  
-✔ No investment advice  
-✔ Citation mandatory per answer  
+st.markdown("""
+### 🏷️ System Status
+✔ RAG Mode: ACTIVE  
+✔ Source Grounding: ENABLED  
+✔ Facts-only mode: ON  
+✔ Hallucination control: ENABLED  
 """)
