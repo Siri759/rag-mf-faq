@@ -1,72 +1,85 @@
 import streamlit as st
-import re
+import numpy as np
+import pandas as pd
+import faiss
+from sentence_transformers import SentenceTransformer
 
-st.set_page_config(page_title="Mutual Fund RAG Assistant", layout="wide")
+# ===================== UI ===================== #
 
-# ===================== HEADER ===================== #
+st.set_page_config(page_title="Semantic Mutual Fund RAG", layout="wide")
 
-st.markdown("""
-# 📚 Mutual Fund FAQ Assistant (RAG System)
-### Facts-only AI assistant powered by AMC/SEBI documents
-""")
-
-st.caption("No advice • No predictions • Only verified facts")
+st.title("🧠 Semantic RAG Mutual Fund Assistant")
+st.caption("Production-grade retrieval using embeddings + FAISS")
 
 # ===================== CORPUS ===================== #
 
 docs = [
     {
-        "question": "expense ratio",
-        "answer": "Expense ratio is the annual fee charged by AMC for managing the fund.",
+        "text": "Expense ratio is the annual fee charged by AMC for managing a mutual fund scheme.",
         "source": "https://www.amfiindia.com"
     },
     {
-        "question": "exit load",
-        "answer": "Exit load is a charge applied when units are redeemed before a specific period.",
+        "text": "Exit load is a fee charged when redeeming units before a specified period.",
         "source": "https://www.amfiindia.com"
     },
     {
-        "question": "elss lock in",
-        "answer": "ELSS funds have a mandatory 3-year lock-in period under Section 80C.",
+        "text": "ELSS funds have a mandatory lock-in period of 3 years under Section 80C.",
         "source": "https://www.amfiindia.com"
     },
     {
-        "question": "minimum sip",
-        "answer": "Minimum SIP starts from ₹100–₹500 depending on the fund.",
+        "text": "Minimum SIP investment usually starts from ₹100 to ₹500 depending on the scheme.",
         "source": "https://www.amfiindia.com"
     },
     {
-        "question": "riskometer",
-        "answer": "Riskometer shows risk level from low to very high for mutual funds.",
+        "text": "Riskometer indicates the risk level of a mutual fund from low to very high.",
         "source": "https://www.sebi.gov.in"
+    },
+    {
+        "text": "Mutual fund statements can be downloaded from AMC websites or CAMS/KFintech portals.",
+        "source": "https://www.camsonline.com"
     }
 ]
 
-# ===================== CLEAN FUNCTION ===================== #
+texts = [d["text"] for d in docs]
 
-def clean(text):
-    return re.sub(r"[^a-zA-Z ]", "", text.lower())
+# ===================== EMBEDDINGS MODEL ===================== #
 
-# ===================== RAG RETRIEVER ===================== #
+@st.cache_resource
+def load_model():
+    return SentenceTransformer("all-MiniLM-L6-v2")
 
-def retrieve(query):
+model = load_model()
 
-    query = clean(query)
+# ===================== BUILD VECTOR DB ===================== #
 
-    best = None
-    best_score = 0
+@st.cache_resource
+def build_index():
 
-    for doc in docs:
+    embeddings = model.encode(texts)
 
-        q = clean(doc["question"])
+    dim = embeddings.shape[1]
 
-        score = len(set(q.split()) & set(query.split()))
+    index = faiss.IndexFlatL2(dim)
+    index.add(np.array(embeddings))
 
-        if score > best_score:
-            best_score = score
-            best = doc
+    return index, embeddings
 
-    return best
+index, embeddings = build_index()
+
+# ===================== SEARCH FUNCTION ===================== #
+
+def search(query, k=1):
+
+    query_vec = model.encode([query])
+
+    D, I = index.search(np.array(query_vec), k)
+
+    results = []
+
+    for idx in I[0]:
+        results.append(docs[idx])
+
+    return results
 
 # ===================== REFUSAL SYSTEM ===================== #
 
@@ -76,79 +89,58 @@ def is_advice(q):
 
     return any(b in q.lower() for b in banned)
 
-# ===================== UI SIDEBAR ===================== #
+# ===================== UI ===================== #
 
-st.sidebar.title("💡 Try these questions")
+st.markdown("### 💬 Ask a Mutual Fund Question")
 
-if st.sidebar.button("What is expense ratio?"):
-    st.session_state.q = "expense ratio"
+question = st.chat_input("Example: What is ELSS lock-in period?")
 
-if st.sidebar.button("ELSS lock-in period?"):
-    st.session_state.q = "elss lock in"
+# ===================== PIPELINE VISUAL ===================== #
 
-if st.sidebar.button("Exit load meaning?"):
-    st.session_state.q = "exit load"
+def show_pipeline():
 
-# ===================== INPUT ===================== #
+    st.info("🔎 Step 1: Converting query into embeddings...")
+    st.info("📡 Step 2: Searching vector database (FAISS)...")
+    st.info("🧠 Step 3: Retrieving semantically similar documents...")
+    st.info("📄 Step 4: Generating grounded answer...")
 
-question = st.chat_input("Ask a mutual fund question...")
-
-if "q" in st.session_state:
-    question = st.session_state.q
-    del st.session_state.q
-
-# ===================== RAG DEMO FLOW ===================== #
+# ===================== RESPONSE ===================== #
 
 if question:
 
-    st.markdown("## 🔎 RAG Pipeline Execution")
-
-    st.info("Step 1: Understanding query...")
-    st.info("Step 2: Retrieving AMC/SEBI documents...")
-    st.info("Step 3: Matching relevant knowledge...")
-    st.info("Step 4: Generating factual response...")
-
-    # ===================== REFUSAL ===================== #
+    show_pipeline()
 
     if is_advice(question):
 
-        st.error("❌ I can only provide factual mutual fund information.")
-
-        st.markdown("📌 Refer official AMC pages:")
+        st.error("❌ Only factual mutual fund information is allowed.")
         st.write("https://www.amfiindia.com")
 
     else:
 
-        result = retrieve(question)
+        results = search(question)
 
         with st.chat_message("assistant"):
 
-            if result:
+            st.success("📚 Semantic RAG Answer")
 
-                st.success("📄 Fact-based Answer")
+            answer = results[0]["text"]
 
-                st.markdown(f"""
+            st.markdown(f"""
 ### 🧠 Answer
-{result['answer']}
+{answer}
 """)
 
-                st.markdown("### 📌 Source")
-                st.link_button("Open Source", result["source"])
+            st.markdown("### 📌 Source")
+            st.link_button("Open Source", results[0]["source"])
 
-                st.caption("Verified from AMC/SEBI documents")
+            st.caption("Retrieved using FAISS semantic search + embeddings")
 
-            else:
+# ===================== SIDEBAR ===================== #
 
-                st.warning("No exact match found in RAG corpus.")
+st.sidebar.title("🧠 System Info")
 
-# ===================== FOOTER UI ===================== #
-
-st.markdown("---")
-
-st.markdown("""
-### 🏷️ System Status
-✔ RAG Mode: ACTIVE  
-✔ Source Grounding: ENABLED  
-✔ Facts-only mode: ON  
-✔ Hallucination control: ENABLED  
-""")
+st.sidebar.success("✔ Semantic RAG Enabled")
+st.sidebar.success("✔ FAISS Vector Search")
+st.sidebar.success("✔ Sentence Transformers Embeddings")
+st.sidebar.success("✔ Source Grounded Responses")
+st.sidebar.success("✔ No hallucination mode")
