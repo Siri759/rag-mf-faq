@@ -138,13 +138,31 @@ elif sort_option == "Risk Level":
 # ---------------- SEARCH LOGIC ---------------- #
 
 if question:
-    q = question.lower()
 
-    results = filtered_df[
-        filtered_df["name"].str.lower().str.contains(q) |
-        filtered_df["category"].str.lower().str.contains(q) |
-        filtered_df["risk"].str.lower().str.contains(q)
-    ]
+    intent = detect_intent(question)
+
+    ranked = []
+
+    for fund in filtered_df.to_dict("records"):
+        fund["score"] = score_fund(fund, intent)
+        ranked.append(fund)
+
+    ranked = sorted(ranked, key=lambda x: x["score"], reverse=True)
+
+    top3 = ranked[:3]
+
+    st.markdown("## 🏆 Top Recommended Funds")
+
+    for i, fund in enumerate(top3):
+        medal = ["🥇", "🥈", "🥉"][i]
+
+        st.success(f"{medal} {fund['name']} (Score: {fund['score']})")
+
+        st.write("Category:", fund["category"])
+        st.write("Risk:", fund["risk"])
+        st.write("NAV:", fund["nav"])
+
+        st.markdown("---")
 
     if not results.empty:
 
