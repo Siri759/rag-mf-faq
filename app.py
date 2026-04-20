@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 
-st.set_page_config(page_title="Groww Mutual Fund Facts Assistant", layout="wide")
+st.set_page_config(page_title="Groww Mutual Fund Assistant", layout="wide")
 
 # ---------------- HEADER ---------------- #
 
@@ -35,6 +35,7 @@ funds = [
     {"name": "HDFC Hybrid Fund", "category": "Hybrid", "nav": 45.1, "risk": "Moderate"},
     {"name": "ICICI Tech Fund", "category": "Equity", "nav": 150.4, "risk": "High"},
     {"name": "HDFC Corporate Bond", "category": "Debt", "nav": 32.1, "risk": "Low"},
+    {"name": "Parag Parikh Flexi Cap", "category": "Equity", "nav": 65.9, "risk": "Moderate"},
 ]
 
 df = pd.DataFrame(funds)
@@ -58,15 +59,31 @@ with st.expander("📊 Fund Analytics Dashboard", expanded=False):
 
 # ---------------- INPUT ---------------- #
 
-question = st.text_input("Ask your question (scheme name or intent)")
+question = st.text_input("Ask your question (e.g., safe long term fund)")
 
-# ---------------- HORIZON-AWARE SCORING ---------------- #
+# ---------------- INTENT DETECTION ---------------- #
 
-def score_fund(fund, horizon):
+def detect_intent(text):
+    t = text.lower()
+
+    if "safe" in t or "low risk" in t:
+        return "safe"
+    if "long" in t or "5 year" in t:
+        return "long_term"
+    if "short" in t:
+        return "short_term"
+    if "balanced" in t or "medium" in t:
+        return "balanced"
+
+    return "neutral"
+
+# ---------------- SCORING ENGINE ---------------- #
+
+def score_fund(fund, horizon, intent):
 
     score = 0
 
-    # Base risk scoring
+    # Risk
     if fund["risk"] == "Low":
         score += 5
     elif fund["risk"] == "Moderate":
@@ -74,7 +91,7 @@ def score_fund(fund, horizon):
     else:
         score += 1
 
-    # Category scoring
+    # Category
     if fund["category"] == "Equity":
         score += 4
     elif fund["category"] == "Hybrid":
@@ -86,25 +103,28 @@ def score_fund(fund, horizon):
     if 40 <= fund["nav"] <= 120:
         score += 2
 
-    # ---------------- HORIZON LOGIC ---------------- #
-
+    # Horizon logic
     if horizon == "Short Term (1-3 years)":
         if fund["category"] == "Debt":
             score += 4
-        if fund["risk"] == "Low":
-            score += 3
 
     elif horizon == "Medium Term (3-5 years)":
         if fund["category"] == "Hybrid":
             score += 4
-        if fund["risk"] == "Moderate":
-            score += 2
 
     elif horizon == "Long Term (5+ years)":
         if fund["category"] == "Equity":
             score += 5
-        if fund["risk"] in ["Moderate", "High"]:
-            score += 2
+
+    # Intent boost
+    if intent == "safe" and fund["risk"] == "Low":
+        score += 4
+
+    if intent == "long_term" and fund["category"] == "Equity":
+        score += 3
+
+    if intent == "balanced" and fund["category"] == "Hybrid":
+        score += 4
 
     return score
 
@@ -127,26 +147,29 @@ elif sort_option == "Risk Level":
     risk_map = {"Low": 1, "Moderate": 2, "High": 3}
     filtered_df = filtered_df.sort_values("risk", key=lambda x: x.map(risk_map))
 
-# ---------------- MAIN LOGIC ---------------- #
+# ---------------- MAIN CHATBOT LOGIC ---------------- #
 
 if question:
 
-    q = question.lower()
+    intent = detect_intent(question)
 
     ranked = []
 
     for fund in filtered_df.to_dict("records"):
-        fund["score"] = score_fund(fund, horizon)
+        fund["score"] = score_fund(fund, horizon, intent)
         ranked.append(fund)
 
     ranked = sorted(ranked, key=lambda x: x["score"], reverse=True)
 
-    st.markdown("## 🏆 Top Recommended Funds")
+    st.markdown("## 🤖 Smart Recommendations")
+
+    st.write("**Intent detected:**", intent)
+    st.write("**Horizon selected:**", horizon)
 
     for i, fund in enumerate(ranked[:3]):
         medal = ["🥇", "🥈", "🥉"][i]
 
-        st.success(f"{medal} {fund['name']} (Score: {fund['score']})")
+        st.success(f"{medal} {fund['name']}")
 
         st.write("Category:", fund["category"])
         st.write("Risk:", fund["risk"])
@@ -155,4 +178,4 @@ if question:
         st.markdown("---")
 
 else:
-    st.info("Use filters + search to get recommendations")
+    st.info("Type a query like: 'safe long term fund' or use filters")
