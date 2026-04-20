@@ -1,28 +1,24 @@
 import streamlit as st
-import numpy as np
-import faiss
-from sentence_transformers import SentenceTransformer
+import pandas as pd
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
 
-# ===================== UI CONFIG ===================== #
+# ===================== UI ===================== #
 
-st.set_page_config(page_title="Mutual Fund AI Assistant", layout="wide")
+st.set_page_config(page_title="Mutual Fund FAQ RAG", layout="wide")
 
-st.markdown("""
-# 🧠 Mutual Fund AI Assistant (Semantic RAG)
-### Facts-only • Grounded in AMC / SEBI documents
-""")
-
-st.caption("No advice • No predictions • Only verified financial facts")
+st.title("📚 Mutual Fund FAQ Assistant (RAG System)")
+st.caption("Facts-only • AMC/SEBI grounded • No investment advice")
 
 # ===================== CORPUS ===================== #
 
 docs = [
     {
-        "text": "Expense ratio is the annual fee charged by mutual fund AMCs for managing investments.",
+        "text": "Expense ratio is the annual fee charged by AMC for managing a mutual fund.",
         "source": "https://www.amfiindia.com"
     },
     {
-        "text": "Exit load is a charge applied when units are redeemed before a specified holding period.",
+        "text": "Exit load is charged when units are redeemed before a specific period.",
         "source": "https://www.amfiindia.com"
     },
     {
@@ -34,60 +30,36 @@ docs = [
         "source": "https://www.amfiindia.com"
     },
     {
-        "text": "Riskometer indicates risk level of mutual funds from low to very high.",
+        "text": "Riskometer shows risk level of mutual funds from low to very high.",
         "source": "https://www.sebi.gov.in"
     },
     {
-        "text": "NAV represents the per-unit market value of a mutual fund scheme.",
+        "text": "NAV is the per-unit market value of a mutual fund scheme.",
         "source": "https://www.amfiindia.com"
-    },
-    {
-        "text": "Mutual fund statements can be downloaded from AMC portals or CAMS/KFintech.",
-        "source": "https://www.camsonline.com"
     }
 ]
 
 texts = [d["text"] for d in docs]
 
-# ===================== MODEL ===================== #
+# ===================== TF-IDF RAG ===================== #
 
-@st.cache_resource
-def load_model():
-    return SentenceTransformer("all-MiniLM-L6-v2")
-
-model = load_model()
-
-# ===================== VECTOR DB ===================== #
-
-@st.cache_resource
-def build_index():
-
-    embeddings = model.encode(texts)
-
-    index = faiss.IndexFlatL2(embeddings.shape[1])
-    index.add(np.array(embeddings))
-
-    return index
-
-index = build_index()
-
-# ===================== SEARCH ===================== #
+vectorizer = TfidfVectorizer()
+X = vectorizer.fit_transform(texts)
 
 def search(query, k=3):
 
-    q_vec = model.encode([query])
+    q_vec = vectorizer.transform([query])
 
-    distances, indices = index.search(np.array(q_vec), k)
+    scores = cosine_similarity(q_vec, X)[0]
+
+    top_k = scores.argsort()[::-1][:k]
 
     results = []
 
-    for i in range(k):
-        idx = indices[0][i]
-        score = float(distances[0][i])
-
+    for i in top_k:
         results.append({
-            "doc": docs[idx],
-            "score": score
+            "doc": docs[i],
+            "score": float(scores[i])
         })
 
     return results
@@ -100,21 +72,21 @@ def is_advice(q):
 
     return any(b in q.lower() for b in banned)
 
-# ===================== UI INPUT ===================== #
+# ===================== INPUT ===================== #
 
 query = st.chat_input("Ask a mutual fund question...")
 
-# ===================== RAG PIPELINE VISUAL ===================== #
+# ===================== RAG PIPELINE ===================== #
 
 def pipeline():
 
-    with st.expander("🔎 RAG Pipeline (Debug View)", expanded=False):
-        st.info("1. Query encoded into embeddings")
-        st.info("2. FAISS vector search executed")
-        st.info("3. Top semantic matches retrieved")
-        st.info("4. Answer grounded from AMC/SEBI docs")
+    with st.expander("🔎 RAG Pipeline", expanded=False):
+        st.info("Step 1: Convert query into TF-IDF vector")
+        st.info("Step 2: Compute cosine similarity")
+        st.info("Step 3: Retrieve top matching AMC documents")
+        st.info("Step 4: Return grounded factual answer")
 
-# ===================== RESPONSE ENGINE ===================== #
+# ===================== RESPONSE ===================== #
 
 if query:
 
@@ -122,49 +94,45 @@ if query:
 
     if is_advice(query):
 
-        st.error("❌ This system only provides factual mutual fund information.")
+        st.error("❌ Only factual mutual fund information allowed.")
+
+        st.write("📌 Visit: https://www.amfiindia.com")
 
     else:
 
-        results = search(query, k=3)
+        results = search(query)
 
         best = results[0]
 
-        # confidence heuristic (lower distance = better)
-        confidence = max(0, 100 - best["score"] * 50)
+        confidence = best["score"] * 100
 
-        # fallback handling
-        if confidence < 40:
-            st.warning("⚠️ Low confidence match found in corpus.")
+        with st.chat_message("assistant"):
 
-            st.markdown("""
-### 📌 Try rephrasing:
-- What is expense ratio?
-- What is ELSS lock-in period?
-- What is exit load?
-""")
+            st.success("📚 Fact-Based Answer")
 
-        else:
-
-            with st.chat_message("assistant"):
-
-                st.success("📚 Semantic RAG Answer")
-
-                st.markdown(f"""
+            st.markdown(f"""
 ### 🧠 Answer
 {best['doc']['text']}
 """)
 
-                st.markdown(f"""
+            st.markdown(f"""
 ### 📊 Confidence Score
-**{round(confidence, 2)}%**
+{round(confidence, 2)}%
 """)
 
-                st.markdown("### 📌 Source")
-                st.link_button("Open Official Source", best["doc"]["source"])
+            st.markdown("### 📌 Source")
+            st.link_button("Open Source", best["doc"]["source"])
 
-                # show alternatives
-                st.markdown("### 🔍 Related Matches")
+            st.markdown("### 🔍 Related Results")
 
-                for r in results[1:]:
-                    st.write("•", r["doc"]["text"])
+            for r in results[1:]:
+                st.write("•", r["doc"]["text"])
+
+# ===================== SIDEBAR ===================== #
+
+st.sidebar.title("System Status")
+
+st.sidebar.success("✔ RAG Mode Active")
+st.sidebar.success("✔ TF-IDF Semantic Search")
+st.sidebar.success("✔ AMC/SEBI Sources Only")
+st.sidebar.success("✔ No Advice Mode Enabled")
