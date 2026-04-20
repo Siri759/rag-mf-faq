@@ -60,6 +60,7 @@ with st.expander("📊 Fund Analytics Dashboard", expanded=False):
 # ---------------- INPUT ---------------- #
 
 question = st.text_input("Ask your question (e.g., safe long term fund)")
+amount = st.number_input("💰 Enter Investment Amount (₹)", min_value=1000, step=1000)
 
 # ---------------- INTENT DETECTION ---------------- #
 
