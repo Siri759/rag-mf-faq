@@ -49,19 +49,26 @@ if question:
     long_term_keywords = ["long term", "long-term", "safe", "best"]
     is_long_term_query = any(keyword in question_lower for keyword in long_term_keywords)
 
-    def calculate_score(fund):
-        score = 0
-        if fund["risk"] == "Low":
-            score += 3
-        elif fund["risk"] == "Moderate":
-            score += 2
-        else:
-            score += 1
+   def calculate_score(fund):
+    score = 0
 
-        if fund["category"] == "Equity":
-            score += 2
+    # Risk weight (more weight)
+    if fund["risk"] == "Low":
+        score += 5
+    elif fund["risk"] == "Moderate":
+        score += 3
+    else:
+        score += 1
 
-        return score
+    # Equity preference for long term
+    if fund["category"] == "Equity":
+        score += 4
+
+    # Slight NAV stability bias (mid NAV preferred)
+    if 40 <= fund["nav"] <= 120:
+        score += 2
+
+    return score
 
     # MAIN MATCHING LOOP (PROPERLY INDENTED)
         # SMART FILTERING BASED ON USER INTENT
