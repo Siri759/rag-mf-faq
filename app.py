@@ -10,6 +10,10 @@ st.sidebar.header("Filter Options")
 category_filter = st.sidebar.selectbox(
     "Select Category",
     ["All", "Equity", "Debt", "Hybrid"]
+    horizon = st.sidebar.selectbox(
+    "Investment Horizon",
+    ["Any", "Short Term (1-3 years)", "Medium Term (3-5 years)", "Long Term (5+ years)"]
+)
 )
 
 # Fund Dataset
