@@ -17,7 +17,10 @@ horizon = st.sidebar.selectbox(
     "Investment Horizon",
     ["Any", "Short Term (1-3 years)", "Medium Term (3-5 years)", "Long Term (5+ years)"]
 )
-
+sort_option = st.sidebar.selectbox(
+    "Sort By",
+    ["Default", "NAV (High to Low)", "NAV (Low to High)", "Risk Level"]
+)
 # Fund Dataset
 funds = [
     {"name": "Axis Bluechip Fund - Growth", "category": "Equity", "nav": 52.34, "risk": "Low"},
