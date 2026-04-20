@@ -6,6 +6,10 @@ st.set_page_config(page_title="Groww Mutual Fund Facts Assistant", layout="wide"
 st.title("📊 Groww Mutual Fund Facts Assistant")
 st.caption("Facts-only. No investment advice.")
 
+question = st.text_input("Ask your question (scheme name or intent)")
+
+# THEN dashboard below
+
 # ---------------- SIDEBAR ---------------- #
 
 st.sidebar.header("Filter Options")
