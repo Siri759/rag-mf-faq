@@ -43,14 +43,11 @@ if question:
     question_lower = question.lower()
     matches = []
 
-    # Long-term detection
     long_term_keywords = ["long term", "long-term", "safe", "best"]
     is_long_term_query = any(keyword in question_lower for keyword in long_term_keywords)
 
-    # Scoring function
     def calculate_score(fund):
         score = 0
-
         if fund["risk"] == "Low":
             score += 3
         elif fund["risk"] == "Moderate":
@@ -63,59 +60,59 @@ if question:
 
         return score
 
-        # Matching logic
-for fund in funds:
+    # MAIN MATCHING LOOP (PROPERLY INDENTED)
+    for fund in funds:
 
-    # Horizon-based filtering
-    if horizon == "Short Term (1-3 years)":
-        if fund["category"] == "Debt" and fund["risk"] == "Low":
-            matches.append(fund)
-
-    elif horizon == "Medium Term (3-5 years)":
-        if fund["category"] in ["Hybrid", "Equity"] and fund["risk"] in ["Low", "Moderate"]:
-            matches.append(fund)
-
-    elif horizon == "Long Term (5+ years)":
-           if fund["category"] == "Equity" and fund["risk"] in ["Low", "Moderate"]:
+        # Horizon-based filtering
+        if horizon == "Short Term (1-3 years)":
+            if fund["category"] == "Debt" and fund["risk"] == "Low":
                 matches.append(fund)
 
-    # Normal search if no horizon selected
-    else:
-        if (
-            question_lower in fund["name"].lower()
-            or question_lower in fund["category"].lower()
-            or question_lower in fund["risk"].lower()
-        ):
-            if category_filter == "All" or fund["category"] == category_filter:
+        elif horizon == "Medium Term (3-5 years)":
+            if fund["category"] in ["Hybrid", "Equity"] and fund["risk"] in ["Low", "Moderate"]:
                 matches.append(fund)
 
+        elif horizon == "Long Term (5+ years)":
+            if fund["category"] == "Equity" and fund["risk"] in ["Low", "Moderate"]:
+                matches.append(fund)
+
+        else:
+            # Normal text search
+            if (
+                question_lower in fund["name"].lower()
+                or question_lower in fund["category"].lower()
+                or question_lower in fund["risk"].lower()
+            ):
+                if category_filter == "All" or fund["category"] == category_filter:
+                    matches.append(fund)
+
+    # OUTPUT SECTION
     if matches:
 
-        # Sort by score only if long-term
         if is_long_term_query:
             matches = sorted(matches, key=lambda x: calculate_score(x), reverse=True)
 
         st.success(f"{len(matches)} Fund(s) Found ✅")
 
         for index, fund in enumerate(matches):
-            with st.container():
-                st.markdown("---")
+            st.markdown("---")
 
-                if index == 0 and is_long_term_query:
-                    st.success("🏆 Top Pick Based on Query")
+            if index == 0 and is_long_term_query:
+                st.success("🏆 Top Pick Based on Query")
 
-                if is_long_term_query and fund["risk"] == "Low":
-                    st.info("⭐ Recommended for Long Term Investment")
+            if is_long_term_query and fund["risk"] == "Low":
+                st.info("⭐ Recommended for Long Term Investment")
 
-                st.subheader(fund["name"])
+            st.subheader(fund["name"])
 
-                col1, col2 = st.columns(2)
+            col1, col2 = st.columns(2)
 
-                with col1:
-                    st.metric("NAV", fund["nav"])
-                    st.write("**Category:**", fund["category"])
+            with col1:
+                st.metric("NAV", fund["nav"])
+                st.write("**Category:**", fund["category"])
 
-                with col2:
-                    st.write("**Risk Level:**", fund["risk"])
+            with col2:
+                st.write("**Risk Level:**", fund["risk"])
+
     else:
         st.error("No matching fund found.")
