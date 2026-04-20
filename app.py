@@ -59,11 +59,25 @@ def retrieve(query):
 
     query = query.lower()
 
-    for doc in docs:
-        if doc["question"] in query:
-            return doc
+    best_match = None
+    best_score = 0
 
-    return None
+    for doc in docs:
+
+        doc_q = doc["question"]
+
+        score = 0
+
+        # split words and match partially
+        for word in doc_q.split():
+            if word in query:
+                score += 1
+
+        if score > best_score:
+            best_score = score
+            best_match = doc
+
+    return best_match
 
 # ===================== REFUSAL SYSTEM ===================== #
 
