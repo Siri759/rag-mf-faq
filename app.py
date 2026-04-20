@@ -195,9 +195,20 @@ if question:
 
     ranked = []
 
-    for fund in filtered_df.to_dict("records"):
-        fund["score"] = score_fund(fund, horizon, intent)
-        ranked.append(fund)
+    # assign scores first
+for fund in filtered_df.to_dict("records"):
+    fund["score"] = score_fund(fund, horizon, intent)
+
+# build portfolio
+portfolio = build_portfolio(filtered_df.to_dict("records"), horizon)
+
+st.markdown("## 💼 Suggested Portfolio Allocation")
+
+for item in portfolio:
+    st.info(
+        f"{item['fund']} ({item['category']})\n"
+        f"Allocation: {item['allocation_pct']}% → ₹{item['amount']}"
+    )
 
     ranked = sorted(ranked, key=lambda x: x["score"], reverse=True)
 
