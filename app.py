@@ -8,111 +8,45 @@ st.set_page_config(page_title="Groww Mutual Fund Facts Assistant", layout="wide"
 st.title("📊 Groww Mutual Fund Facts Assistant")
 st.caption("Facts-only. No investment advice.")
 
-# ---------------- SIDEBAR FILTERS ---------------- #
+# ---------------- SIDEBAR ---------------- #
 
-st.sidebar.header("Filter Options")
+st.sidebar.header("Filters")
 
 category_filter = st.sidebar.selectbox(
     "Category",
     ["All", "Equity", "Debt", "Hybrid"]
 )
 
-horizon = st.sidebar.selectbox(
-    "Investment Horizon",
-    ["Any", "Short Term (1-3 years)", "Medium Term (3-5 years)", "Long Term (5+ years)"]
-)
-
 sort_option = st.sidebar.selectbox(
     "Sort By",
-    ["Default", "NAV (High to Low)", "NAV (Low to High)", "Risk Level"]
+    ["Default", "NAV High → Low", "NAV Low → High", "Risk"]
 )
 
 # ---------------- DATA ---------------- #
 
 funds = [
-    {"name": "Axis Bluechip Fund - Growth", "category": "Equity", "nav": 52.34, "risk": "Low"},
-    {"name": "SBI Small Cap Fund - Growth", "category": "Equity", "nav": 110.21, "risk": "High"},
-    {"name": "HDFC Hybrid Fund - Growth", "category": "Hybrid", "nav": 45.10, "risk": "Moderate"},
-    {"name": "ICICI Prudential Technology Fund", "category": "Equity", "nav": 150.44, "risk": "High"},
-    {"name": "Kotak Emerging Equity Fund", "category": "Equity", "nav": 78.12, "risk": "High"},
-    {"name": "Parag Parikh Flexi Cap Fund", "category": "Equity", "nav": 65.90, "risk": "Moderate"},
-    {"name": "Mirae Asset Large Cap Fund", "category": "Equity", "nav": 89.33, "risk": "Low"},
-    {"name": "UTI Nifty Index Fund", "category": "Equity", "nav": 120.55, "risk": "Low"},
-    {"name": "Aditya Birla Tax Relief 96", "category": "Equity", "nav": 44.87, "risk": "Moderate"},
-    {"name": "Nippon India Growth Fund", "category": "Equity", "nav": 102.77, "risk": "High"},
-    {"name": "HDFC Corporate Bond Fund", "category": "Debt", "nav": 32.14, "risk": "Low"},
-    {"name": "SBI Magnum Gilt Fund", "category": "Debt", "nav": 28.76, "risk": "Low"},
-    {"name": "ICICI Prudential Balanced Advantage Fund", "category": "Hybrid", "nav": 37.55, "risk": "Moderate"},
-    {"name": "DSP Midcap Fund", "category": "Equity", "nav": 98.42, "risk": "High"},
-    {"name": "Tata Digital India Fund", "category": "Equity", "nav": 132.10, "risk": "High"},
+    {"name": "Axis Bluechip Fund", "category": "Equity", "nav": 52.3, "risk": "Low"},
+    {"name": "SBI Small Cap Fund", "category": "Equity", "nav": 110.2, "risk": "High"},
+    {"name": "HDFC Hybrid Fund", "category": "Hybrid", "nav": 45.1, "risk": "Moderate"},
+    {"name": "ICICI Tech Fund", "category": "Equity", "nav": 150.4, "risk": "High"},
 ]
 
 df = pd.DataFrame(funds)
-# ---------------- SMART ENGINE FUNCTIONS ---------------- #
-
-def score_fund(fund, intent="neutral"):
-    score = 0
-
-    # Risk scoring
-    if fund["risk"] == "Low":
-        score += 5
-    elif fund["risk"] == "Moderate":
-        score += 3
-    else:
-        score += 1
-
-    # Category scoring
-    if fund["category"] == "Equity":
-        score += 4
-    elif fund["category"] == "Hybrid":
-        score += 3
-    else:
-        score += 2
-
-    # NAV stability
-    if 40 <= fund["nav"] <= 120:
-        score += 2
-
-    # Intent boost
-    if intent == "long_term" and fund["category"] == "Equity":
-        score += 2
-
-    if intent == "safe" and fund["risk"] == "Low":
-        score += 3
-
-    return score
-
-
-def detect_intent(text):
-    t = text.lower()
-
-    if "long" in t or "5 year" in t or "best" in t:
-        return "long_term"
-    elif "safe" in t or "low risk" in t:
-        return "safe"
-    elif "short" in t:
-        return "short_term"
-    else:
-        return "neutral"
 
 # ---------------- DASHBOARD ---------------- #
 
 with st.expander("📊 Fund Analytics Dashboard", expanded=False):
 
-    col1, col2 = st.columns(2)
+    st.subheader("Category Distribution")
+    st.bar_chart(df["category"].value_counts())
 
-    with col1:
-        st.subheader("Category Distribution")
-        st.bar_chart(df["category"].value_counts())
-
-    with col2:
-        st.subheader("Risk Distribution")
-        st.bar_chart(df["risk"].value_counts())
+    st.subheader("Risk Distribution")
+    st.bar_chart(df["risk"].value_counts())
 
     st.subheader("NAV Comparison")
     st.bar_chart(df.set_index("name")["nav"])
 
-# ---------------- SEARCH ---------------- #
+# ---------------- INPUT ---------------- #
 
 question = st.text_input("Ask your question (scheme name or intent)")
 
@@ -125,67 +59,41 @@ if category_filter != "All":
 
 # ---------------- SORTING ---------------- #
 
-if sort_option == "NAV (High to Low)":
-    filtered_df = filtered_df.sort_values(by="nav", ascending=False)
+if sort_option == "NAV High → Low":
+    filtered_df = filtered_df.sort_values("nav", ascending=False)
 
-elif sort_option == "NAV (Low to High)":
-    filtered_df = filtered_df.sort_values(by="nav", ascending=True)
+elif sort_option == "NAV Low → High":
+    filtered_df = filtered_df.sort_values("nav", ascending=True)
 
-elif sort_option == "Risk Level":
+elif sort_option == "Risk":
     risk_map = {"Low": 1, "Moderate": 2, "High": 3}
-    filtered_df = filtered_df.sort_values(by="risk", key=lambda x: x.map(risk_map))
+    filtered_df = filtered_df.sort_values("risk", key=lambda x: x.map(risk_map))
 
-# ---------------- SEARCH LOGIC ---------------- #
+# ---------------- SEARCH ---------------- #
 
 if question:
 
-    intent = detect_intent(question)
+    q = question.lower()
 
-    ranked = []
-
-    for fund in filtered_df.to_dict("records"):
-        fund["score"] = score_fund(fund, intent)
-        ranked.append(fund)
-
-    ranked = sorted(ranked, key=lambda x: x["score"], reverse=True)
-
-    top3 = ranked[:3]
-
-    st.markdown("## 🏆 Top Recommended Funds")
-
-    for i, fund in enumerate(top3):
-        medal = ["🥇", "🥈", "🥉"][i]
-
-        st.success(f"{medal} {fund['name']} (Score: {fund['score']})")
-
-        st.write("Category:", fund["category"])
-        st.write("Risk:", fund["risk"])
-        st.write("NAV:", fund["nav"])
-
-        st.markdown("---")
+    results = filtered_df[
+        filtered_df["name"].str.lower().str.contains(q) |
+        filtered_df["category"].str.lower().str.contains(q) |
+        filtered_df["risk"].str.lower().str.contains(q)
+    ]
 
     if not results.empty:
 
-        st.success(f"{len(results)} Fund(s) Found ✅")
+        st.success(f"{len(results)} Fund(s) Found")
 
         for _, row in results.iterrows():
             st.markdown("---")
             st.subheader(row["name"])
-
-            col1, col2 = st.columns(2)
-
-            with col1:
-                st.metric("NAV", row["nav"])
-                st.write("Category:", row["category"])
-
-            with col2:
-                st.write("Risk Level:", row["risk"])
+            st.write("Category:", row["category"])
+            st.write("NAV:", row["nav"])
+            st.write("Risk:", row["risk"])
 
     else:
-        st.error("No matching fund found.")
-
-# ---------------- DEFAULT VIEW ---------------- #
+        st.error("No matching fund found")
 
 else:
-    st.info("Use sidebar filters + search to explore mutual funds")
-    st.dataframe(filtered_df)
+    st.info("Use filters or search to explore funds")
