@@ -1,13 +1,13 @@
 import streamlit as st
+import time
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 
-# ================= PAGE SETUP =================
+# ================= PAGE CONFIG =================
+st.set_page_config(page_title="Mutual Fund AI Chatbot (RAG)", layout="centered")
 
-st.set_page_config(page_title="Mutual Fund Chatbot (RAG)", layout="wide")
-
-st.title("📚 FAQ Chatbot — Mutual Fund Facts (RAG)")
-st.caption("Ask mutual fund facts — no investment advice.")
+st.title("📚 Mutual Fund AI Chatbot")
+st.caption("Facts-only responses from AMC / SEBI sources • No investment advice")
 
 # ================= KNOWLEDGE BASE =================
 
@@ -26,52 +26,67 @@ texts = [d["text"] for d in docs]
 vectorizer = TfidfVectorizer()
 X = vectorizer.fit_transform(texts)
 
+# ================= FUNCTIONS =================
+
 def retrieve_answer(query):
     q_vec = vectorizer.transform([query])
     scores = cosine_similarity(q_vec, X)[0]
     best_index = scores.argmax()
-    return docs[best_index]["text"], docs[best_index]["source"]
+    confidence = round(scores[best_index] * 100, 2)
+    return docs[best_index]["text"], docs[best_index]["source"], confidence
 
 def is_advice(q):
     blocked = ["best fund", "should i invest", "buy", "sell", "portfolio", "returns"]
     return any(b in q.lower() for b in blocked)
 
-# ================= CHAT SESSION =================
+# ================= CHAT MEMORY =================
 
 if "history" not in st.session_state:
     st.session_state.history = []
+
+# Display chat history first
+for msg in st.session_state.history:
+    with st.chat_message(msg["role"]):
+        st.markdown(msg["content"])
+
+# ================= USER INPUT =================
 
 user_input = st.chat_input("Ask a mutual fund question...")
 
 if user_input:
 
-    # Save user message
+    # Show user message immediately
     st.session_state.history.append({"role": "user", "content": user_input})
+    with st.chat_message("user"):
+        st.markdown(user_input)
 
-    # Advice filter
-    if is_advice(user_input):
-        answer_text = "I can only provide factual information from official sources. No investment advice."
-        answer_source = "https://www.amfiindia.com"
+    # Assistant response
+    with st.chat_message("assistant"):
 
-    else:
-        answer_text, answer_source = retrieve_answer(user_input)
+        with st.spinner("Thinking..."):
+            time.sleep(1)
 
-    # Save assistant message
-    formatted_answer = f"""
+            if is_advice(user_input):
+                answer_text = "I can only provide factual information from official AMC/SEBI sources. I do not provide investment advice."
+                answer_source = "https://www.amfiindia.com"
+                confidence = 100.0
+            else:
+                answer_text, answer_source, confidence = retrieve_answer(user_input)
+
+        formatted_answer = f"""
 ### 📘 Answer
 {answer_text}
 
 ---
 
-🔗 **Source:** [{answer_source}]({answer_source})
+🔗 **Source:** [{answer_source}]({answer_source})  
+📊 **Confidence Score:** {confidence}%
 """
 
-st.session_state.history.append({
-    "role": "assistant",
-    "content": formatted_answer
-})
+        st.markdown(formatted_answer)
 
-# Display chat history
-for msg in st.session_state.history:
-    with st.chat_message(msg["role"]):
-        st.markdown(msg["content"])
+    # Save assistant response to memory
+    st.session_state.history.append({
+        "role": "assistant",
+        "content": formatted_answer
+    })
