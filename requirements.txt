@@ -4,3 +4,4 @@ openai
 faiss-cpu
 requests
 beautifulsoup4
+scikit-learn
