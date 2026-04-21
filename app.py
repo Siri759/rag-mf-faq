@@ -10,13 +10,21 @@ client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
 # ================= PREMIUM UI =================
 st.markdown("""
 <style>
-body { background: linear-gradient(135deg, #141E30, #243B55); }
-.stApp { background: transparent; color: white; }
+
+html, body, [class*="css"]  {
+    background: linear-gradient(135deg, #141E30, #243B55) !important;
+    color: white !important;
+}
+
+input, textarea {
+    color: black !important;
+}
 
 .logo {
     text-align:center;
     font-size:36px;
     font-weight:700;
+    color:white;
 }
 
 .card {
@@ -26,9 +34,9 @@ body { background: linear-gradient(135deg, #141E30, #243B55); }
     border-radius: 20px;
     box-shadow: 0 10px 40px rgba(0,0,0,0.4);
 }
+
 </style>
 """, unsafe_allow_html=True)
-
 st.markdown('<div class="logo">🤖 Mutual Fund AI SaaS</div>', unsafe_allow_html=True)
 st.markdown("<br>", unsafe_allow_html=True)
 
