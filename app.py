@@ -57,10 +57,19 @@ if user_input:
         answer_text, answer_source = retrieve_answer(user_input)
 
     # Save assistant message
-    st.session_state.history.append({
-        "role": "assistant",
-        "content": f"{answer_text}\n\nSource: {answer_source}"
-    })
+    formatted_answer = f"""
+### 📘 Answer
+{answer_text}
+
+---
+
+🔗 **Source:** [{answer_source}]({answer_source})
+"""
+
+st.session_state.history.append({
+    "role": "assistant",
+    "content": formatted_answer
+})
 
 # Display chat history
 for msg in st.session_state.history:
