@@ -4,9 +4,39 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 
 # ================= PAGE CONFIG =================
-st.set_page_config(page_title="Mutual Fund AI Chatbot (RAG)", layout="centered")
+st.set_page_config(page_title="Mutual Fund AI Chatbot", layout="centered")
 
-st.title("📚 Mutual Fund AI Chatbot")
+# ================= DARK THEME CSS =================
+st.markdown("""
+<style>
+body {
+    background-color: #0e1117;
+    color: white;
+}
+
+.stApp {
+    background-color: #0e1117;
+}
+
+h1 {
+    text-align: center;
+    font-weight: 700;
+}
+
+.block-container {
+    padding-top: 2rem;
+    padding-bottom: 2rem;
+}
+
+div[data-testid="stChatMessage"] {
+    border-radius: 15px;
+    padding: 12px;
+}
+
+</style>
+""", unsafe_allow_html=True)
+
+st.title("🤖 Mutual Fund AI Chatbot")
 st.caption("Facts-only responses from AMC / SEBI sources • No investment advice")
 
 # ================= KNOWLEDGE BASE =================
@@ -44,7 +74,6 @@ def is_advice(q):
 if "history" not in st.session_state:
     st.session_state.history = []
 
-# Display chat history first
 for msg in st.session_state.history:
     with st.chat_message(msg["role"]):
         st.markdown(msg["content"])
@@ -55,12 +84,10 @@ user_input = st.chat_input("Ask a mutual fund question...")
 
 if user_input:
 
-    # Show user message immediately
     st.session_state.history.append({"role": "user", "content": user_input})
     with st.chat_message("user"):
         st.markdown(user_input)
 
-    # Assistant response
     with st.chat_message("assistant"):
 
         with st.spinner("Thinking..."):
@@ -85,7 +112,6 @@ if user_input:
 
         st.markdown(formatted_answer)
 
-    # Save assistant response to memory
     st.session_state.history.append({
         "role": "assistant",
         "content": formatted_answer
