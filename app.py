@@ -4,28 +4,39 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 
 # ================= PAGE CONFIG =================
-st.set_page_config(page_title="Mutual Fund AI Chatbot", layout="centered")
+st.set_page_config(page_title="Mutual Fund AI", layout="centered")
 
-# ================= DARK THEME CSS =================
+# ================= PREMIUM DARK THEME =================
 st.markdown("""
 <style>
 body {
-    background-color: #0e1117;
+    background: linear-gradient(135deg, #0f2027, #203a43, #2c5364);
     color: white;
 }
 
 .stApp {
-    background-color: #0e1117;
+    background: transparent;
 }
 
-h1 {
+.main-title {
     text-align: center;
+    font-size: 42px;
     font-weight: 700;
+    margin-bottom: 5px;
 }
 
-.block-container {
-    padding-top: 2rem;
-    padding-bottom: 2rem;
+.subtitle {
+    text-align: center;
+    font-size: 16px;
+    opacity: 0.8;
+    margin-bottom: 30px;
+}
+
+.chat-container {
+    backdrop-filter: blur(12px);
+    background: rgba(255, 255, 255, 0.05);
+    padding: 25px;
+    border-radius: 20px;
 }
 
 div[data-testid="stChatMessage"] {
@@ -36,11 +47,10 @@ div[data-testid="stChatMessage"] {
 </style>
 """, unsafe_allow_html=True)
 
-st.title("🤖 Mutual Fund AI Chatbot")
-st.caption("Facts-only responses from AMC / SEBI sources • No investment advice")
+st.markdown('<div class="main-title">🤖 Mutual Fund AI Assistant</div>', unsafe_allow_html=True)
+st.markdown('<div class="subtitle">Facts-only responses • AMC / SEBI Sources • No Investment Advice</div>', unsafe_allow_html=True)
 
 # ================= KNOWLEDGE BASE =================
-
 docs = [
     {"text": "Expense ratio is the annual fee charged by AMC for managing a mutual fund.", "source": "https://www.amfiindia.com"},
     {"text": "Exit load is charged when units are redeemed before a specific period.", "source": "https://www.amfiindia.com"},
@@ -69,11 +79,20 @@ def is_advice(q):
     blocked = ["best fund", "should i invest", "buy", "sell", "portfolio", "returns"]
     return any(b in q.lower() for b in blocked)
 
+def type_writer_effect(text):
+    displayed = ""
+    placeholder = st.empty()
+    for char in text:
+        displayed += char
+        placeholder.markdown(displayed)
+        time.sleep(0.01)
+
 # ================= CHAT MEMORY =================
 
 if "history" not in st.session_state:
     st.session_state.history = []
 
+# Display old messages
 for msg in st.session_state.history:
     with st.chat_message(msg["role"]):
         st.markdown(msg["content"])
@@ -90,7 +109,7 @@ if user_input:
 
     with st.chat_message("assistant"):
 
-        with st.spinner("Thinking..."):
+        with st.spinner("Analyzing..."):
             time.sleep(1)
 
             if is_advice(user_input):
@@ -110,7 +129,7 @@ if user_input:
 📊 **Confidence Score:** {confidence}%
 """
 
-        st.markdown(formatted_answer)
+        type_writer_effect(formatted_answer)
 
     st.session_state.history.append({
         "role": "assistant",
