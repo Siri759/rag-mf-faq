@@ -1,7 +1,4 @@
 streamlit
-langchain
 openai
-faiss-cpu
-requests
-beautifulsoup4
-scikit-learn
+python-dotenv
+bcrypt
