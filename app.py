@@ -1,86 +1,105 @@
 import streamlit as st
+import time
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 import numpy as np
 
-st.set_page_config(page_title="Mutual Fund AI Assistant", layout="wide")
+# ------------------ PAGE CONFIG ------------------
+st.set_page_config(page_title="Mutual Fund AI Chatbot", layout="centered")
 
-st.title("📊 Mutual Fund AI Assistant")
-st.caption("Facts only. No investment advice.")
+# ------------------ PREMIUM DARK CSS ------------------
+st.markdown("""
+<style>
+html, body, [class*="css"] {
+    background: #0f172a;
+    color: white;
+}
+.stApp {
+    background: transparent;
+}
+.chat-box {
+    backdrop-filter: blur(10px);
+    background: rgba(255,255,255,0.05);
+    padding: 20px;
+    border-radius: 20px;
+}
+div[data-testid="stChatMessage"] {
+    border-radius: 12px;
+    padding: 10px;
+}
+</style>
+""", unsafe_allow_html=True)
 
-# ------------------------------
-# Knowledge Base
-# ------------------------------
+st.title("🤖 Mutual Fund AI Chatbot")
+st.caption("Facts-only • No investment advice")
 
-documents = [
-    {
-        "category": "Equity",
-        "content": "Equity mutual funds invest primarily in stocks and are suitable for long-term wealth creation.",
-        "source": "SEBI Guidelines"
-    },
-    {
-        "category": "Debt",
-        "content": "Debt mutual funds invest in fixed income securities like bonds and treasury bills.",
-        "source": "RBI Publications"
-    },
-    {
-        "category": "Hybrid",
-        "content": "Hybrid mutual funds invest in a mix of equity and debt instruments.",
-        "source": "AMFI India"
-    },
-    {
-        "category": "General",
-        "content": "Expense ratio is the annual fee charged by mutual funds to manage investments.",
-        "source": "AMFI India"
-    },
-    {
-        "category": "General",
-        "content": "SIP stands for Systematic Investment Plan, allowing investors to invest regularly.",
-        "source": "SEBI Investor Education"
-    },
+# ------------------ KNOWLEDGE BASE ------------------
+docs = [
+    {"text": "Expense ratio is the annual fee charged by mutual funds to manage your investment.", "source": "https://www.amfiindia.com"},
+    {"text": "Exit load is charged when units are redeemed before a specified period.", "source": "https://www.amfiindia.com"},
+    {"text": "NAV is the per-unit market value of a mutual fund scheme.", "source": "https://www.amfiindia.com"},
+    {"text": "ELSS funds have a mandatory 3-year lock-in period under Section 80C.", "source": "https://www.amfiindia.com"},
+    {"text": "SIP (Systematic Investment Plan) allows regular investing over time.", "source": "https://www.sebi.gov.in"},
+    {"text": "Riskometer shows the risk level of a mutual fund scheme.", "source": "https://www.amfiindia.com"},
+    {"text": "You can download mutual fund statements from AMC or Registrar portals.", "source": "https://www.camsonline.com"}
 ]
-
-# ------------------------------
-# Vectorization
-# ------------------------------
-
+texts = [d["text"] for d in docs]
 vectorizer = TfidfVectorizer()
-doc_texts = [doc["content"] for doc in documents]
-doc_vectors = vectorizer.fit_transform(doc_texts)
+X = vectorizer.fit_transform(texts)
 
-# ------------------------------
-# Sidebar Filter
-# ------------------------------
+def get_best_answer(query):
+    q_vec = vectorizer.transform([query])
+    scores = cosine_similarity(q_vec, X)[0]
+    best_index = np.argmax(scores)
+    return docs[best_index]["text"], docs[best_index]["source"], scores[best_index]
 
-st.sidebar.header("Filter by Category")
-selected_category = st.sidebar.selectbox(
-    "Choose Category",
-    ["All", "Equity", "Debt", "Hybrid", "General"]
-)
+def is_advice(q):
+    blocked = ["best fund", "should i invest", "buy", "sell", "returns", "recommend"]
+    return any(b in q.lower() for b in blocked)
 
-# ------------------------------
-# Question Input
-# ------------------------------
+# ------------------ CHAT HISTORY ------------------
+if "messages" not in st.session_state:
+    st.session_state.messages = []
 
-question = st.text_input("Ask your question about mutual funds:")
+# Display messages
+for msg in st.session_state.messages:
+    with st.chat_message(msg["role"]):
+        st.markdown(msg["content"])
 
-if question:
-    question_vector = vectorizer.transform([question])
-    similarities = cosine_similarity(question_vector, doc_vectors)
-    best_match_index = np.argmax(similarities)
-    confidence_score = similarities[0][best_match_index]
+# ------------------ USER INPUT ------------------
+query = st.chat_input("Ask a mutual fund question...")
 
-    best_doc = documents[best_match_index]
+if query:
+    # Add user to history
+    st.session_state.messages.append({"role": "user", "content": query})
+    with st.chat_message("user"):
+        st.markdown(query)
 
-    if selected_category == "All" or best_doc["category"] == selected_category:
-        st.subheader("Answer")
-        st.write(best_doc["content"])
+    # Typing animation
+    with st.chat_message("assistant"):
+        with st.spinner("Thinking..."):
+            time.sleep(1)
 
-        st.subheader("Source")
-        st.write(best_doc["source"])
+        if is_advice(query):
+            ans_text = "I can only provide factual information from official mutual fund sources. No investment advice."
+            ans_source = "https://www.amfiindia.com"
+            confidence = 1.0
+        else:
+            ans_text, ans_source, score = get_best_answer(query)
+            confidence = round(float(score)*100, 2)
 
-        st.progress(float(confidence_score))
+        formatted = f"""
+### 📘 Answer
+{ans_text}
 
-        st.caption(f"Confidence Score: {round(float(confidence_score) * 100, 2)}%")
-    else:
-        st.warning("No relevant answer found in selected category.")
+---
+
+🔗 **Source:** [{ans_source}]({ans_source})
+
+📊 **Confidence:** {confidence}%
+"""
+
+        st.markdown(formatted)
+
+    # Save assistant response
+    st.session_state.messages.append({"role": "assistant", "content": formatted})
