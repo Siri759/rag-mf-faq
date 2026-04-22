@@ -1,121 +1,86 @@
 import streamlit as st
-import time
-import bcrypt
-from openai import OpenAI
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
+import numpy as np
 
-st.set_page_config(page_title="Mutual Fund AI SaaS", layout="centered")
-st.write("Key loaded:", st.secrets.get("OPENAI_API_KEY"))
-client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
+st.set_page_config(page_title="Mutual Fund AI Assistant", layout="wide")
 
-# ================= PREMIUM UI =================
-st.markdown("""
-<style>
+st.title("📊 Mutual Fund AI Assistant")
+st.caption("Facts only. No investment advice.")
 
-html, body, [class*="css"]  {
-    background: linear-gradient(135deg, #141E30, #243B55) !important;
-    color: white !important;
-}
+# ------------------------------
+# Knowledge Base
+# ------------------------------
 
-input, textarea {
-    color: black !important;
-}
+documents = [
+    {
+        "category": "Equity",
+        "content": "Equity mutual funds invest primarily in stocks and are suitable for long-term wealth creation.",
+        "source": "SEBI Guidelines"
+    },
+    {
+        "category": "Debt",
+        "content": "Debt mutual funds invest in fixed income securities like bonds and treasury bills.",
+        "source": "RBI Publications"
+    },
+    {
+        "category": "Hybrid",
+        "content": "Hybrid mutual funds invest in a mix of equity and debt instruments.",
+        "source": "AMFI India"
+    },
+    {
+        "category": "General",
+        "content": "Expense ratio is the annual fee charged by mutual funds to manage investments.",
+        "source": "AMFI India"
+    },
+    {
+        "category": "General",
+        "content": "SIP stands for Systematic Investment Plan, allowing investors to invest regularly.",
+        "source": "SEBI Investor Education"
+    },
+]
 
-.logo {
-    text-align:center;
-    font-size:36px;
-    font-weight:700;
-    color:white;
-}
+# ------------------------------
+# Vectorization
+# ------------------------------
 
-.card {
-    backdrop-filter: blur(15px);
-    background: rgba(255,255,255,0.08);
-    padding: 25px;
-    border-radius: 20px;
-    box-shadow: 0 10px 40px rgba(0,0,0,0.4);
-}
+vectorizer = TfidfVectorizer()
+doc_texts = [doc["content"] for doc in documents]
+doc_vectors = vectorizer.fit_transform(doc_texts)
 
-</style>
-""", unsafe_allow_html=True)
-st.markdown('<div class="logo">🤖 Mutual Fund AI SaaS</div>', unsafe_allow_html=True)
-st.markdown("<br>", unsafe_allow_html=True)
+# ------------------------------
+# Sidebar Filter
+# ------------------------------
 
-# ================= SESSION INIT =================
-if "authenticated" not in st.session_state:
-    st.session_state.authenticated = False
+st.sidebar.header("Filter by Category")
+selected_category = st.sidebar.selectbox(
+    "Choose Category",
+    ["All", "Equity", "Debt", "Hybrid", "General"]
+)
 
-if "usage_count" not in st.session_state:
-    st.session_state.usage_count = 0
+# ------------------------------
+# Question Input
+# ------------------------------
 
-if "messages" not in st.session_state:
-    st.session_state.messages = [
-        {"role": "system", "content": "You are a mutual fund facts assistant. Only provide factual information. Do not provide investment advice."}
-    ]
+question = st.text_input("Ask your question about mutual funds:")
 
-# ================= LOGIN SYSTEM =================
-if not st.session_state.authenticated:
-    with st.container():
-        st.markdown('<div class="card">', unsafe_allow_html=True)
-        password = st.text_input("Enter Access Password", type="password")
+if question:
+    question_vector = vectorizer.transform([question])
+    similarities = cosine_similarity(question_vector, doc_vectors)
+    best_match_index = np.argmax(similarities)
+    confidence_score = similarities[0][best_match_index]
 
-        if st.button("Login"):
-            if password == st.secrets["ADMIN_PASSWORD"]:
-                st.session_state.authenticated = True
-                st.success("Access Granted")
-                st.rerun()
-            else:
-                st.error("Invalid Password")
-        st.markdown('</div>', unsafe_allow_html=True)
-    st.stop()
+    best_doc = documents[best_match_index]
 
-# ================= SIDEBAR (SaaS Features) =================
-st.sidebar.title("Account")
+    if selected_category == "All" or best_doc["category"] == selected_category:
+        st.subheader("Answer")
+        st.write(best_doc["content"])
 
-PLAN = "Free"
+        st.subheader("Source")
+        st.write(best_doc["source"])
 
-if st.session_state.usage_count > 10:
-    PLAN = "Premium"
+        st.progress(float(confidence_score))
 
-st.sidebar.write(f"Plan: {PLAN}")
-st.sidebar.write(f"Usage Today: {st.session_state.usage_count}")
-
-if st.sidebar.button("Admin Panel"):
-    st.sidebar.write("Total Messages:", len(st.session_state.messages))
-    st.sidebar.write("Usage Count:", st.session_state.usage_count)
-
-# ================= DISPLAY CHAT =================
-for msg in st.session_state.messages[1:]:
-    with st.chat_message(msg["role"]):
-        st.markdown(msg["content"])
-
-# ================= USAGE LIMIT =================
-FREE_LIMIT = 5
-
-if PLAN == "Free" and st.session_state.usage_count >= FREE_LIMIT:
-    st.warning("Free limit reached. Upgrade to Premium.")
-    st.stop()
-
-# ================= CHAT INPUT =================
-prompt = st.chat_input("Ask mutual fund facts...")
-
-if prompt:
-    st.session_state.messages.append({"role": "user", "content": prompt})
-
-    with st.chat_message("user"):
-        st.markdown(prompt)
-
-    with st.chat_message("assistant"):
-
-        with st.spinner("AI Processing..."):
-            response = client.chat.completions.create(
-                model="gpt-4o-mini",
-                messages=st.session_state.messages,
-                temperature=0.2
-            )
-
-            answer = response.choices[0].message.content
-
-        st.markdown(answer)
-
-    st.session_state.messages.append({"role": "assistant", "content": answer})
-    st.session_state.usage_count += 1
+        st.caption(f"Confidence Score: {round(float(confidence_score) * 100, 2)}%")
+    else:
+        st.warning("No relevant answer found in selected category.")
