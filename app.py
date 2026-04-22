@@ -8,27 +8,6 @@ import numpy as np
 # ------------------ PAGE CONFIG ------------------
 st.set_page_config(page_title="Mutual Fund AI Assistant", layout="centered")
 
-# ------------------ PREMIUM DARK UI ------------------
-st.markdown("""
-<style>
-html, body, [class*="css"] {
-    background: #0f172a;
-    color: white;
-}
-.stApp {
-    background: transparent;
-}
-[data-testid="stChatMessage"] {
-    background: rgba(255,255,255,0.05);
-    padding: 12px;
-    border-radius: 16px;
-}
-h1 {
-    text-align: center;
-}
-</style>
-""", unsafe_allow_html=True)
-
 st.title("🤖 Mutual Fund AI Assistant")
 st.caption("Facts-only • No investment advice")
 
@@ -44,9 +23,10 @@ docs = [
     {"text": "Riskometer indicates the risk level of a mutual fund scheme from low to very high.", "source": "https://www.amfiindia.com"},
     {"text": "Large-cap funds invest primarily in top 100 companies by market capitalization.", "source": "https://www.sebi.gov.in"},
     {"text": "Debt funds invest in bonds, treasury bills, and other fixed income instruments.", "source": "https://www.rbi.org.in"},
+    {"text": "Equity mutual funds invest primarily in stocks and are suitable for long-term wealth creation.", "source": "https://www.sebi.gov.in"},
 ]
 
-# ------------------ VECTOR SEARCH IMPROVED ------------------
+# ------------------ VECTOR SEARCH ------------------
 texts = [d["text"] for d in docs]
 
 vectorizer = TfidfVectorizer(
@@ -73,11 +53,10 @@ def is_advice(q):
     ]
     return any(b in q.lower() for b in blocked)
 
-# ------------------ CHAT SESSION ------------------
+# ------------------ CHAT MEMORY ------------------
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
-# Display history
 for msg in st.session_state.messages:
     with st.chat_message(msg["role"]):
         st.markdown(msg["content"])
@@ -105,14 +84,12 @@ I can only provide factual information from official mutual fund sources.
 """
         else:
             ans_text, ans_source, score = get_best_answer(query)
-
             confidence = round(float(score) * 100, 2)
 
-            # If similarity too low
-            if score < 0.15:
+            if score < 0.18:
                 response = """
 ### ⚠ No Relevant Match Found
-Please ask a more specific mutual fund question.
+Please ask a clear mutual fund-related question.
 """
             else:
                 response = f"""
