@@ -4,7 +4,7 @@ import bcrypt
 from openai import OpenAI
 
 st.set_page_config(page_title="Mutual Fund AI SaaS", layout="centered")
-
+st.write("Key loaded:", st.secrets.get("OPENAI_API_KEY"))
 client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
 
 # ================= PREMIUM UI =================
